@@ -1,0 +1,244 @@
+name: 'Secure AWS Lambda Deployment'
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+    types: [opened, synchronize]
+
+# 设置环境变量
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  LAMBDA_FUNCTION_NAME: ${{ secrets.AWS_LAMBDA_NAME }}
+
+jobs:
+  # 安全扫描作业
+  security_scan:
+    name: 'Security Scanning'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      
+    steps:
+      - name: 'Checkout Code'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      # 静态代码分析
+      - name: 'Initialize CodeQL'
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript # 根据Lambda函数语言调整
+      
+      - name: 'Perform CodeQL Analysis'
+        uses: github/codeql-action/analyze@v2
+      
+      # 依赖项漏洞扫描
+      - name: 'Setup Node.js'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          
+      - name: 'Install Dependencies'
+        run: npm ci
+        
+      - name: 'Dependency Vulnerability Check'
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          
+      # 密钥扫描
+      - name: 'Secret Scanning'
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  # 部署审批（仅生产环境）
+  deploy_approval:
+    name: 'Deployment Approval'
+    needs: security_scan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production # 需要在GitHub仓库设置中配置需要审批的环境
+    steps:
+      - name: 'Approval Check'
+        run: echo "Deployment approved by ${{ github.actor }}"
+  
+  # Lambda部署作业
+  deploy_lambda:
+    name: 'Deploy Lambda Function'
+    needs: deploy_approval
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # 启用OIDC身份验证
+      contents: read
+      
+    steps:
+      - name: 'Checkout Code'
+        uses: actions/checkout@v3
+      
+      # 配置AWS凭证（使用OIDC）
+      - name: 'Configure AWS Credentials'
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      # 记录部署元数据
+      - name: 'Add Deployment Metadata'
+        run: |
+          mkdir -p deployment-info
+          echo "GITHUB_SHA=${{ github.sha }}" >> deployment-info/metadata.txt
+          echo "GITHUB_ACTOR=${{ github.actor }}" >> deployment-info/metadata.txt
+          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> deployment-info/metadata.txt
+          echo "DEPLOYMENT_TIME=$(date)" >> deployment-info/metadata.txt
+      
+      # 安装依赖
+      - name: 'Setup Node.js'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          
+      - name: 'Install Dependencies'
+        run: npm ci
+      
+      # 运行测试
+      - name: 'Run Tests'
+        run: npm test
+        
+      # 打包Lambda函数
+      - name: 'Install Zip'
+        run: sudo apt-get update && sudo apt-get install zip -y
+        
+      - name: 'Package Lambda Function'
+        run: |
+          zip -r function.zip . \
+            -x ".git/*" \
+            -x ".github/*" \
+            -x "tests/*" \
+            -x "node_modules/aws-sdk/*" \
+            -x "__pycache__/*" \
+            -x "*.test.js" \
+            -x "*.spec.js"
+      
+      # 检查函数是否存在
+      - name: 'Check If Function Exists'
+        id: function_check
+        run: |
+          if aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --region ${{ env.AWS_REGION }} 2>&1 | grep -q "Function not found"; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+      
+      # 创建函数（如果不存在）
+      - name: 'Create Function If Not Exists'
+        if: steps.function_check.outputs.exists == 'false'
+        run: |
+          aws lambda create-function \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --runtime nodejs16.x \
+            --handler index.handler \
+            --role ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }} \
+            --zip-file fileb://function.zip \
+            --description "Created from commit ${{ github.sha }} by ${{ github.actor }}" \
+            --region ${{ env.AWS_REGION }} \
+            --tags GitHubRepo=${{ github.repository }},GitHubSHA=${{ github.sha }}
+      
+      # 验证函数配置
+      - name: 'Validate Function Configuration'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          aws lambda get-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }} | \
+            jq -e '.MemorySize <= 512 and .Timeout <= 60'
+      
+      # 更新函数配置
+      - name: 'Update Function Configuration'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          aws lambda update-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --description "Deployed from commit ${{ github.sha }} by ${{ github.actor }} on $(date)" \
+            --region ${{ env.AWS_REGION }}
+      
+      # 部署并发布版本
+      - name: 'Deploy and Publish Version'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          VERSION=$(aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --zip-file fileb://function.zip \
+            --region ${{ env.AWS_REGION }} \
+            --publish \
+            --query 'Version' --output text)
+          echo "Published Lambda version: $VERSION from commit ${{ github.sha }}"
+          
+          # 将部署元数据上传到S3（可选）
+          if [ ! -z "${{ secrets.DEPLOYMENT_LOGS_BUCKET }}" ]; then
+            echo "VERSION=$VERSION" >> deployment-info/metadata.txt
+            aws s3 cp deployment-info/metadata.txt s3://${{ secrets.DEPLOYMENT_LOGS_BUCKET }}/${{ env.LAMBDA_FUNCTION_NAME }}/${{ github.sha }}/metadata.txt
+          fi
+      
+      # 添加部署标签
+      - name: 'Add Deployment Tags'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          aws lambda tag-resource \
+            --resource ${{ steps.get_function_arn.outputs.function_arn }} \
+            --tags GitHubSHA=${{ github.sha }},GitHubActor=${{ github.actor }},DeploymentTime=$(date +%s) \
+            --region ${{ env.AWS_REGION }}
+      
+  # 部署通知
+  notify:
+    name: 'Deployment Notification'
+    needs: deploy_lambda
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Send Slack Notification'
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "Lambda Deployment: ${{ needs.deploy_lambda.result == 'success' && '✅ Success' || '❌ Failure' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Lambda Function Deployment*: ${{ needs.deploy_lambda.result == 'success' && '✅ Success' || '❌ Failure' }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Function:*\n${{ env.LAMBDA_FUNCTION_NAME }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Deployed by:*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n${{ github.sha }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK 

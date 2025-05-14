@@ -1,0 +1,23 @@
+{
+  "name": "lambda-github-actions-demo",
+  "version": "1.0.0",
+  "description": "AWS Lambda 部署流水线示例",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "github-actions",
+    "cicd"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^29.5.0"
+  }
+} 

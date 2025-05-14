@@ -1,0 +1,220 @@
+name: 'Mock AWS Lambda Deployment Test'
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_scenario:
+        description: '测试场景'
+        required: true
+        default: 'success'
+        type: choice
+        options:
+          - success
+          - function_not_exist
+          - security_scan_fail
+          - deployment_fail
+
+# 设置环境变量
+env:
+  MOCK_AWS_REGION: 'us-east-1'
+  MOCK_LAMBDA_NAME: 'test-lambda-function'
+
+jobs:
+  # 安全扫描作业模拟
+  security_scan:
+    name: 'Mock Security Scanning'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 'Checkout Code'
+        uses: actions/checkout@v3
+      
+      # 模拟静态代码分析
+      - name: 'Mock CodeQL Analysis'
+        run: |
+          echo "模拟执行 CodeQL 分析..."
+          if [[ "${{ github.event.inputs.test_scenario }}" == "security_scan_fail" ]]; then
+            echo "::error::模拟安全扫描失败: 发现潜在的代码注入漏洞"
+            exit 1
+          fi
+          echo "代码分析完成，未发现安全问题"
+      
+      # 模拟依赖项漏洞扫描
+      - name: 'Mock Dependency Check'
+        run: |
+          echo "模拟检查依赖项漏洞..."
+          echo "依赖项检查完成，未发现高危漏洞"
+          
+      # 模拟密钥扫描
+      - name: 'Mock Secret Scanning'
+        run: |
+          echo "模拟密钥扫描..."
+          echo "密钥扫描完成，未发现泄露的凭证"
+          
+  # 部署审批模拟
+  deploy_approval:
+    name: 'Mock Deployment Approval'
+    needs: security_scan
+    runs-on: ubuntu-latest
+    environment: mock-production
+    steps:
+      - name: 'Mock Approval Check'
+        run: echo "模拟部署已由 ${{ github.actor }} 批准"
+  
+  # Lambda部署作业模拟
+  deploy_lambda:
+    name: 'Mock Lambda Deployment'
+    needs: deploy_approval
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 'Checkout Code'
+        uses: actions/checkout@v3
+      
+      # 模拟配置AWS凭证
+      - name: 'Mock AWS Credentials'
+        run: |
+          echo "模拟配置AWS凭证..."
+          echo "已通过OIDC获取临时令牌"
+      
+      # 模拟记录部署元数据
+      - name: 'Mock Deployment Metadata'
+        run: |
+          echo "模拟记录部署元数据..."
+          echo "GITHUB_SHA=${{ github.sha }}" > mock-metadata.txt
+          echo "GITHUB_ACTOR=${{ github.actor }}" >> mock-metadata.txt
+          echo "DEPLOYMENT_TIME=$(date)" >> mock-metadata.txt
+          cat mock-metadata.txt
+      
+      # 模拟打包Lambda函数
+      - name: 'Mock Lambda Packaging'
+        run: |
+          echo "模拟打包Lambda函数..."
+          echo "function() { console.log('Hello World'); }" > index.js
+          echo "已创建模拟函数代码"
+          mkdir -p mock-package
+          cp index.js mock-package/
+          echo "模拟打包完成"
+      
+      # 模拟检查函数是否存在
+      - name: 'Mock Function Check'
+        id: function_check
+        run: |
+          echo "模拟检查Lambda函数是否存在..."
+          if [[ "${{ github.event.inputs.test_scenario }}" == "function_not_exist" ]]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "模拟结果: 函数不存在"
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "模拟结果: 函数已存在"
+          fi
+      
+      # 模拟创建函数
+      - name: 'Mock Function Creation'
+        if: steps.function_check.outputs.exists == 'false'
+        run: |
+          echo "模拟创建Lambda函数..."
+          echo "函数名称: ${{ env.MOCK_LAMBDA_NAME }}"
+          echo "运行时: nodejs16.x"
+          echo "处理程序: index.handler"
+          echo "描述: Created from commit ${{ github.sha }} by ${{ github.actor }}"
+          echo "模拟函数创建成功"
+      
+      # 模拟验证函数配置
+      - name: 'Mock Configuration Validation'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          echo "模拟验证函数配置..."
+          echo "内存: 128 MB"
+          echo "超时: 30 秒"
+          echo "配置验证通过"
+      
+      # 模拟更新函数配置
+      - name: 'Mock Configuration Update'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          echo "模拟更新函数配置..."
+          echo "描述: Deployed from commit ${{ github.sha }} by ${{ github.actor }} on $(date)"
+          echo "函数配置已更新"
+      
+      # 模拟部署并发布版本
+      - name: 'Mock Deployment'
+        if: steps.function_check.outputs.exists == 'true'
+        run: |
+          echo "模拟部署Lambda函数代码..."
+          if [[ "${{ github.event.inputs.test_scenario }}" == "deployment_fail" ]]; then
+            echo "::error::模拟部署失败: 无法更新函数代码"
+            exit 1
+          fi
+          echo "模拟发布新版本..."
+          echo "已发布版本: 5"
+          echo "提交: ${{ github.sha }}"
+          
+          echo "VERSION=5" >> mock-metadata.txt
+          echo "模拟部署完成"
+      
+      # 模拟添加部署标签
+      - name: 'Mock Tagging'
+        if: steps.function_check.outputs.exists == 'true' && github.event.inputs.test_scenario != 'deployment_fail'
+        run: |
+          echo "模拟添加部署标签..."
+          echo "GitHubSHA=${{ github.sha }}"
+          echo "GitHubActor=${{ github.actor }}"
+          echo "DeploymentTime=$(date +%s)"
+          echo "标签添加完成"
+      
+  # 部署通知模拟
+  notify:
+    name: 'Mock Deployment Notification'
+    needs: deploy_lambda
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Mock Slack Notification'
+        run: |
+          echo "模拟发送Slack通知..."
+          echo "函数: ${{ env.MOCK_LAMBDA_NAME }}"
+          echo "部署状态: ${{ needs.deploy_lambda.result == 'success' && '✅ 成功' || '❌ 失败' }}"
+          echo "部署者: ${{ github.actor }}"
+          echo "提交: ${{ github.sha }}"
+          echo "工作流: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "通知已发送"
+
+  # 测试结果汇总
+  test_summary:
+    name: 'Test Summary'
+    needs: [security_scan, deploy_approval, deploy_lambda, notify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Generate Test Report'
+        run: |
+          echo "# Lambda部署流水线测试报告" > test_report.md
+          echo "" >> test_report.md
+          echo "## 测试场景: ${{ github.event.inputs.test_scenario }}" >> test_report.md
+          echo "" >> test_report.md
+          echo "## 测试结果" >> test_report.md
+          echo "" >> test_report.md
+          echo "| 步骤 | 状态 | 备注 |" >> test_report.md
+          echo "|------|------|------|" >> test_report.md
+          echo "| 安全扫描 | ${{ needs.security_scan.result == 'success' && '✅ 通过' || '❌ 失败' }} | ${{ github.event.inputs.test_scenario == 'security_scan_fail' && '模拟安全扫描失败' || '无异常' }} |" >> test_report.md
+          echo "| 部署审批 | ${{ needs.deploy_approval.result == 'success' && '✅ 通过' || '❌ 失败' }} | 由 ${{ github.actor }} 批准 |" >> test_report.md
+          echo "| Lambda部署 | ${{ needs.deploy_lambda.result == 'success' && '✅ 通过' || '❌ 失败' }} | ${{ github.event.inputs.test_scenario == 'deployment_fail' && '模拟部署失败' || github.event.inputs.test_scenario == 'function_not_exist' && '模拟创建新函数' || '模拟更新现有函数' }} |" >> test_report.md
+          echo "| 部署通知 | ${{ needs.notify.result == 'success' && '✅ 通过' || '❌ 失败' }} | 模拟通知已发送 |" >> test_report.md
+          echo "" >> test_report.md
+          echo "## 测试总结" >> test_report.md
+          echo "" >> test_report.md
+          
+          if [[ "${{ needs.security_scan.result }}" == "success" && "${{ needs.deploy_approval.result }}" == "success" && "${{ needs.deploy_lambda.result }}" == "success" && "${{ needs.notify.result }}" == "success" ]]; then
+            echo "✅ **测试通过**: 所有流水线步骤按预期执行" >> test_report.md
+          else
+            echo "❌ **测试失败**: 部分流水线步骤未按预期执行" >> test_report.md
+          fi
+          
+          cat test_report.md
+      
+      - name: 'Upload Test Report'
+        uses: actions/upload-artifact@v3
+        with:
+          name: lambda-pipeline-test-report
+          path: test_report.md 
