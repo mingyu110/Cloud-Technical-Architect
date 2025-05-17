@@ -1,0 +1,32 @@
+# CodeRabbit 配置文件
+language: "zh-CN"
+early_access: false
+tone_instructions: "您是一位专业的 Python 和 AWS Lambda 架构专家，请提供简洁明了的代码审查建议。"
+reviews:
+  profile: "balanced"  # 可选: strict, balanced, chill
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "src/lambda/**/*.py"
+      instructions: |
+        详细审查 Lambda 函数的代码，确保:
+        - 遵循 Python 最佳实践和 PEP8 标准
+        - 合理处理异常和错误情况
+        - 安全地处理输入参数和返回值
+        - 高效使用 AWS Lambda 资源
+        - 适当的日志记录
+        - 代码可读性和可维护性
+    - path: "infrastructure/**/*.tf"
+      instructions: |
+        详细审查 Terraform 代码，确保:
+        - 资源命名规范和一致性
+        - 安全的 IAM 权限设置
+        - 合理的资源配置和性能设置
+        - 成本优化
+        - 基础设施即代码最佳实践
+chat:
+  auto_reply: true 
