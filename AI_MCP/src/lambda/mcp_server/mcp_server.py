@@ -56,7 +56,17 @@ def lambda_handler(event, context):
     返回:
         dict: 带有状态码和响应体的字典
     """
-    logger.info(f"Received event: {json.dumps(event)}")
+    # 生成请求ID用于日志追踪
+    import uuid
+    request_id = str(uuid.uuid4())
+    logger.info(f"[RequestID: {request_id}] 收到新请求")
+    logger.debug(f"[RequestID: {request_id}] 请求详情: {json.dumps(event)}")
+    
+    # 验证请求来源（可选）
+    if 'requestContext' in event and 'identity' in event['requestContext']:
+        source_ip = event['requestContext']['identity'].get('sourceIp', 'unknown')
+        user_agent = event['requestContext']['identity'].get('userAgent', 'unknown')
+        logger.info(f"[RequestID: {request_id}] 请求来源: {source_ip}, User-Agent: {user_agent}")
     
     # 从请求体提取MCP调用参数
     try:
@@ -96,19 +106,9 @@ def lambda_handler(event, context):
             # 调用MCP工具
             if tool_name == "get_order_status":
                 order_id = params.get('order_id', '12345')
-                # 这里简化处理，在实际代码中应使用FastMCP的异步API
-                # result = await mcp.call_tool("get_order_status", {"order_id": order_id})
-                
-                # 直接调用函数而不使用FastMCP框架
-                payload = {"order_id": order_id}
-                response = requests.post(MOCK_API_URL, json=payload, timeout=5)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    status = data.get('status', '未知')
-                    result = f"订单 {data.get('order_id', order_id)} 的状态是: {status}"
-                else:
-                    result = f"无法获取订单 {order_id} 的状态，系统错误。"
+                # 使用已定义的get_order_status函数
+                import asyncio
+                result = asyncio.run(get_order_status(order_id))
                 
                 return {
                     'statusCode': 200,
