@@ -51,7 +51,7 @@ AI_MCP
 ### 4. 共享依赖层 (Lambda Layer)
 
 - 功能：共享Python依赖，提高部署效率，减小Lambda包大小
-- 包含：fastmcp, requests, boto3, pytest, pydantic等库
+- 包含：fastmcp>=2.0, requests>=2.31.0, boto3>=1.28.0, pytest>=7.4.0, pydantic>=2.4.2,<2.5.0等库
 - 兼容：Python 3.10 运行时
 - 部署：通过AWS控制台创建，提高构建速度和稳定性
 
@@ -78,7 +78,7 @@ AI_MCP
    
    脚本会自动：
    - 安装所有必要的依赖（包括boto3, requests, fastmcp, pydantic等）
-   - 解决pydantic与pydantic-core的兼容性问题
+   - 确保 fastmcp>=2.0 与 pydantic 的版本兼容
    - 打包依赖为layer.zip文件
    - 在当前目录生成可直接上传的ZIP文件
 
@@ -330,10 +330,9 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
    requests>=2.31.0
    fastmcp>=2.0
    pytest>=7.4.0
-   pydantic==2.5.3
-   pydantic-core==2.14.5
+   pydantic>=2.4.2,<2.5.0
    ```
-   特别注意pydantic和pydantic-core的版本兼容性
+   请注意 fastmcp 和 pydantic 的版本兼容性非常重要
 
 3. **检查CloudWatch日志**：
    查看Lambda执行日志，确认具体的依赖错误信息

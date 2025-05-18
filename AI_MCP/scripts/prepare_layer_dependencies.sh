@@ -21,10 +21,9 @@ echo "boto3>=1.28.0"
 echo "requests>=2.31.0"
 echo "fastmcp>=2.0"
 echo "pytest>=7.4.0"
-echo "pydantic==2.5.3"
-echo "pydantic-core==2.14.5"
+echo "pydantic>=2.0.0"
 
-pip install boto3>=1.28.0 requests>=2.31.0 fastmcp>=2.0 pytest>=7.4.0 pydantic==2.5.3 pydantic-core==2.14.5 -t "$PYTHON_DIR"
+pip install boto3>=1.28.0 requests>=2.31.0 "fastmcp>=2.0" pytest>=7.4.0 "pydantic>=2.0.0" -t "$PYTHON_DIR"
 echo -e "${GREEN}依赖安装完成！${NC}"
 
 # 打包为ZIP
