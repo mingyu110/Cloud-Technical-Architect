@@ -5,7 +5,7 @@ output "api_id" {
 
 output "invoke_url" {
   description = "API Gateway调用URL"
-  value       = "${aws_api_gateway_deployment.api.invoke_url}"
+  value       = "${aws_api_gateway_stage.api_stage.invoke_url}"
 }
 
 output "execution_arn" {

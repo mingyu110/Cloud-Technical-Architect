@@ -22,7 +22,7 @@ resource "aws_api_gateway_method" "proxy" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
   resource_id   = aws_api_gateway_resource.proxy.id
   http_method   = "ANY"
-  authorization_type = "NONE"
+  authorization = "NONE"
 }
 
 # 与Lambda集成
@@ -41,7 +41,7 @@ resource "aws_api_gateway_method" "proxy_root" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
   resource_id   = aws_api_gateway_rest_api.api.root_resource_id
   http_method   = "ANY"
-  authorization_type = "NONE"
+  authorization = "NONE"
 }
 
 # 根路径Lambda集成
@@ -63,7 +63,6 @@ resource "aws_api_gateway_deployment" "api" {
   ]
   
   rest_api_id = aws_api_gateway_rest_api.api.id
-  stage_name  = var.stage_name
   
   # 每次配置更改时强制重新部署
   triggers = {
@@ -79,6 +78,15 @@ resource "aws_api_gateway_deployment" "api" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+# 创建API阶段（替代直接在部署上设置stage_name）
+resource "aws_api_gateway_stage" "api_stage" {
+  deployment_id = aws_api_gateway_deployment.api.id
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  stage_name    = var.stage_name
+  
+  tags = var.tags
 }
 
 # 允许API Gateway调用Lambda
