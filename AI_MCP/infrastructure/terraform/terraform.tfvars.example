@@ -1,0 +1,9 @@
+# AWS区域
+aws_region = "us-east-1"
+
+# 环境
+environment = "dev"
+
+# 从AWS控制台创建的Lambda Layer ARN
+# 请替换为您在AWS控制台创建的实际Layer ARN
+lambda_layer_arn = "arn:aws:lambda:us-east-1:123456789012:layer:mcp-dependencies:1" 
