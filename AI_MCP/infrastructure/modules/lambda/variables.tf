@@ -59,4 +59,10 @@ variable "additional_policies" {
   description = "要附加到Lambda角色的额外IAM策略ARN列表"
   type        = list(string)
   default     = []
+}
+
+variable "layers" {
+  description = "Lambda层的ARN列表"
+  type        = list(string)
+  default     = []
 } 
