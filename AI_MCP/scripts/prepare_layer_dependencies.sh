@@ -4,12 +4,28 @@ set -e
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+RED='\033[0;31m'
 NC='\033[0m'
+
+# 检查当前目录是否可写
+if [ ! -w . ]; then
+    echo -e "${RED}错误：当前目录不可写，请确保有写入权限${NC}"
+    exit 1
+fi
 
 # 创建临时目录
 TEMP_DIR=$(mktemp -d)
 PYTHON_DIR="$TEMP_DIR/python"
 mkdir -p "$PYTHON_DIR"
+
+# 清理函数
+cleanup() {
+    echo -e "${BLUE}清理临时目录...${NC}"
+    rm -rf "$TEMP_DIR"
+}
+
+# 设置退出时清理
+trap cleanup EXIT
 
 echo -e "${BLUE}===== 开始准备Lambda Layer依赖 =====${NC}"
 echo -e "${BLUE}临时目录: $TEMP_DIR${NC}"
@@ -23,16 +39,38 @@ echo "fastmcp>=2.0"
 echo "pytest>=7.4.0"
 echo "pydantic>=2.0.0"
 
-pip install boto3>=1.28.0 requests>=2.31.0 "fastmcp>=2.0" pytest>=7.4.0 "pydantic>=2.0.0" -t "$PYTHON_DIR"
+if ! pip install boto3>=1.28.0 requests>=2.31.0 "fastmcp>=2.0" pytest>=7.4.0 "pydantic>=2.0.0" -t "$PYTHON_DIR"; then
+    echo -e "${RED}错误：依赖安装失败${NC}"
+    exit 1
+fi
 echo -e "${GREEN}依赖安装完成！${NC}"
 
 # 打包为ZIP
 ZIP_FILE="$TEMP_DIR/layer.zip"
 echo -e "${BLUE}创建ZIP文件: $ZIP_FILE${NC}"
-cd "$TEMP_DIR" && zip -r layer.zip python
+
+# 保存当前目录
+CURRENT_DIR=$(pwd)
+
+# 切换到临时目录并创建ZIP
+cd "$TEMP_DIR"
+echo -e "${BLUE}当前工作目录: $(pwd)${NC}"
+echo -e "${BLUE}Python目录内容:${NC}"
+ls -la python/
+
+if ! zip -r layer.zip python; then
+    echo -e "${RED}错误：ZIP文件创建失败${NC}"
+    cd "$CURRENT_DIR"
+    exit 1
+fi
+
+# 返回原目录
+cd "$CURRENT_DIR"
 
 echo -e "${BLUE}检查ZIP文件内容:${NC}"
-unzip -l "$ZIP_FILE" | grep -i "pydantic"
+if ! unzip -l "$ZIP_FILE" | grep -i "pydantic"; then
+    echo -e "${YELLOW}警告：未在ZIP文件中找到pydantic包${NC}"
+fi
 
 echo -e "${GREEN}===== Layer依赖已准备完成 =====${NC}"
 echo -e "${GREEN}ZIP文件位置: $ZIP_FILE${NC}"
@@ -45,5 +83,8 @@ echo -e "5. 选择兼容的运行时: Python 3.10"
 echo -e "6. 创建完成后，复制Layer ARN并更新terraform.tfvars文件"
 
 # 复制ZIP文件到当前目录
-cp "$ZIP_FILE" ./layer.zip
+if ! cp "$ZIP_FILE" ./layer.zip; then
+    echo -e "${RED}错误：无法复制ZIP文件到当前目录${NC}"
+    exit 1
+fi
 echo -e "${GREEN}已复制ZIP文件到当前目录: $(pwd)/layer.zip${NC}" 

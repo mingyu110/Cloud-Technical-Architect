@@ -54,4 +54,7 @@ terraform.tfstate.backup
 
 # AWS 凭证
 .aws/
-credentials 
+credentials
+
+# Layer zip
+layer.zip 
