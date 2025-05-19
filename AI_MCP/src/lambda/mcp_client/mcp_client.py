@@ -4,7 +4,9 @@ import os
 import boto3
 import requests
 import time
+import uuid
 from botocore.config import Config
+from fastmcp import MCPClient  # 导入fastmcp客户端
 
 # 配置日志
 logger = logging.getLogger()
@@ -31,18 +33,15 @@ bedrock_runtime = boto3.client(
     config=Config(retries={"max_attempts": 10})
 )
 
+# 初始化MCP客户端
+mcp_client = MCPClient(server_url=MCP_SERVER_URL)
+
 def get_order_status(order_id):
     """获取订单状态"""
     try:
-        payload = {
-            "tool_name": "get_order_status",
-            "params": {"order_id": order_id}
-        }
-        response = requests.post(MCP_SERVER_URL, json=payload, timeout=10)
-        if response.status_code == 200:
-            return response.json().get("result", "")
-        else:
-            return f"无法获取订单 {order_id} 的状态，系统错误。"
+        # 使用MCP客户端调用get_order_status工具
+        result = mcp_client.call_tool("get_order_status", order_id=order_id)
+        return result
     except Exception as e:
         logger.error(f"调用MCP服务器时出错: {str(e)}")
         # 更新错误统计
@@ -148,7 +147,6 @@ def lambda_handler(event, context):
         dict: 带有状态码和响应体的字典
     """
     # 生成请求ID用于日志追踪
-    import uuid
     request_id = str(uuid.uuid4())
     logger.info(f"[RequestID: {request_id}] 收到新请求")
     logger.debug(f"[RequestID: {request_id}] 请求详情: {json.dumps(event)}")
