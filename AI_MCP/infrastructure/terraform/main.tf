@@ -22,10 +22,6 @@ module "order_mock_api" {
     ENVIRONMENT = var.environment
   }
 
-  layers = [
-    var.lambda_layer_arn
-  ]
-
   tags = {
     Project     = "AI_MCP"
     Environment = var.environment
