@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import requests
-from mcp.server.fastmcp import FastMCP
+from mcpengine import MCPEngine
 
 # 配置日志
 logger = logging.getLogger()
@@ -13,9 +13,9 @@ ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 MOCK_API_URL = os.environ.get('MOCK_API_URL', 'http://localhost')
 
 # 创建MCP服务器实例
-mcp = FastMCP("order_status_server")
+engine = MCPEngine()
 
-@mcp.tool()
+@engine.tool()
 async def get_order_status(order_id: str) -> str:
     """
     获取订单状态
@@ -45,89 +45,5 @@ async def get_order_status(order_id: str) -> str:
         logger.error(f"调用订单API时出错: {str(e)}")
         return f"无法获取订单 {order_id} 的状态，服务暂时不可用。"
 
-def lambda_handler(event, context):
-    """
-    Lambda处理函数，处理来自API Gateway的请求
-    
-    参数:
-        event (dict): API Gateway事件
-        context (object): Lambda上下文
-        
-    返回:
-        dict: 带有状态码和响应体的字典
-    """
-    # 生成请求ID用于日志追踪
-    import uuid
-    request_id = str(uuid.uuid4())
-    logger.info(f"[RequestID: {request_id}] 收到新请求")
-    logger.debug(f"[RequestID: {request_id}] 请求详情: {json.dumps(event)}")
-    
-    # 验证请求来源（可选）
-    if 'requestContext' in event and 'identity' in event['requestContext']:
-        source_ip = event['requestContext']['identity'].get('sourceIp', 'unknown')
-        user_agent = event['requestContext']['identity'].get('userAgent', 'unknown')
-        logger.info(f"[RequestID: {request_id}] 请求来源: {source_ip}, User-Agent: {user_agent}")
-    
-    # 从请求体提取MCP调用参数
-    try:
-        if 'body' in event and event['body']:
-            body = json.loads(event['body'])
-            tool_name = body.get('tool_name', '')
-            params = body.get('params', {})
-            
-            # 验证请求
-            if not tool_name:
-                return {
-                    'statusCode': 400,
-                    'body': json.dumps({'error': '缺少tool_name参数'}),
-                }
-            
-            # 检查是否是列出工具的请求
-            if tool_name == "__list_tools__":
-                tools_info = [
-                    {
-                        "name": "get_order_status",
-                        "description": "获取订单状态",
-                        "parameters": {
-                            "order_id": {
-                                "type": "string",
-                                "description": "订单ID"
-                            }
-                        },
-                        "return_type": "string"
-                    }
-                ]
-                return {
-                    'statusCode': 200,
-                    'headers': {'Content-Type': 'application/json'},
-                    'body': json.dumps({'tools': tools_info})
-                }
-            
-            # 调用MCP工具
-            if tool_name == "get_order_status":
-                order_id = params.get('order_id', '12345')
-                # 使用已定义的get_order_status函数
-                import asyncio
-                result = asyncio.run(get_order_status(order_id))
-                
-                return {
-                    'statusCode': 200,
-                    'headers': {'Content-Type': 'application/json'},
-                    'body': json.dumps({'result': result})
-                }
-            else:
-                return {
-                    'statusCode': 400,
-                    'body': json.dumps({'error': f'未知工具: {tool_name}'})
-                }
-        else:
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': '请求体为空'})
-            }
-    except Exception as e:
-        logger.error(f"处理请求时出错: {str(e)}")
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': f'服务器内部错误: {str(e)}'})
-        } 
+# 使用MCPEngine内置的Lambda处理器
+handler = engine.get_lambda_handler() 

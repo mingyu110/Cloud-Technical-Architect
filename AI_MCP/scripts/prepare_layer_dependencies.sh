@@ -43,7 +43,7 @@ echo -e "${BLUE}使用镜像: $PYTHON_IMAGE${NC}"
 cat > "$TEMP_DIR/requirements.txt" << EOF
 boto3>=1.28.0
 requests>=2.31.0
-fastmcp>=2.0
+mcpengine>=0.1.0
 pytest>=7.4.0
 pydantic>=2.0.0
 EOF

@@ -6,7 +6,7 @@ import requests
 import time
 import uuid
 from botocore.config import Config
-from fastmcp import MCPClient  # 导入fastmcp客户端
+from mcpengine import MCPEngineClient  # 更改为MCPEngine客户端
 
 # 配置日志
 logger = logging.getLogger()
@@ -34,7 +34,7 @@ bedrock_runtime = boto3.client(
 )
 
 # 初始化MCP客户端
-mcp_client = MCPClient(server_url=MCP_SERVER_URL)
+mcp_client = MCPEngineClient(MCP_SERVER_URL)
 
 def get_order_status(order_id):
     """获取订单状态"""
