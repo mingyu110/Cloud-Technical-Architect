@@ -57,6 +57,19 @@ resource "aws_lambda_function" "lambda" {
   layers = var.layers
   
   tags = var.tags
+  
+  # 添加lifecycle块，忽略已存在资源的某些更改
+  lifecycle {
+    ignore_changes = [
+      # 忽略某些难以更新的属性
+      filename,
+      source_code_hash,
+      # 对于Context7相关配置，确保不尝试重新创建
+      layers
+    ]
+    # 创建新资源前先删除旧资源，避免命名冲突
+    create_before_destroy = true
+  }
 }
 
 # CloudWatch日志组
@@ -65,4 +78,9 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
   retention_in_days = var.log_retention_days
   
   tags = var.tags
+  
+  # 添加lifecycle块，避免删除已存在的日志组
+  lifecycle {
+    prevent_destroy = true
+  }
 } 

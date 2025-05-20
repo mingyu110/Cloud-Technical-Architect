@@ -1,5 +1,29 @@
 provider "aws" {
   region = var.aws_region
+  
+  # 添加版本约束和错误处理配置
+  skip_requesting_account_id = true
+  skip_metadata_api_check     = true
+  skip_region_validation      = true
+  
+  # 如果出错，最多重试5次
+  max_retries = 5
+}
+
+# 定义Terraform版本和提供者要求
+terraform {
+  required_version = ">= 1.0.0"
+  
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 4.0.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = ">= 2.0.0"
+    }
+  }
 }
 
 # 使用AWS控制台创建的Python依赖Layer
@@ -28,11 +52,11 @@ module "order_mock_api" {
   }
 }
 
-# Lambda函数 - MCP服务器
+# Lambda函数 - MCP服务器 (支持Context7)
 module "mcp_server" {
   source      = "../modules/lambda"
   name        = "mcp-order-status-server"
-  description = "MCP订单状态服务器"
+  description = "MCP订单状态服务器 (支持Context7)"
   handler     = "mcp_server.lambda_handler"
   runtime     = "python3.10"
   source_path = "${path.module}/../../src/lambda/mcp_server"
@@ -42,6 +66,8 @@ module "mcp_server" {
   environment_variables = {
     ENVIRONMENT = var.environment
     MOCK_API_URL = "${module.order_mock_api_gateway.invoke_url}"
+    # 添加Context7相关环境变量
+    CONTEXT7_ENABLED = "true"
   }
 
   layers = [
@@ -51,14 +77,15 @@ module "mcp_server" {
   tags = {
     Project     = "AI_MCP"
     Environment = var.environment
+    Features    = "Context7-enabled"
   }
 }
 
-# Lambda函数 - MCP客户端
+# Lambda函数 - MCP客户端 (支持Context7)
 module "mcp_client" {
   source      = "../modules/lambda"
   name        = "mcp-client"
-  description = "MCP客户端，集成Bedrock"
+  description = "MCP客户端，集成Bedrock和Context7"
   handler     = "mcp_client.lambda_handler"
   runtime     = "python3.10"
   source_path = "${path.module}/../../src/lambda/mcp_client"
@@ -69,6 +96,8 @@ module "mcp_client" {
     ENVIRONMENT = var.environment
     MCP_SERVER_URL = "${module.mcp_server_api_gateway.invoke_url}"
     MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+    # 添加Context7相关环境变量
+    CONTEXT7_ENABLED = "true"
   }
 
   layers = [
@@ -78,6 +107,7 @@ module "mcp_client" {
   tags = {
     Project     = "AI_MCP"
     Environment = var.environment
+    Features    = "Context7-enabled"
   }
 
   additional_policies = [

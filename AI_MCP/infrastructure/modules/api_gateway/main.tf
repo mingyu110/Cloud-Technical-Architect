@@ -8,6 +8,17 @@ resource "aws_api_gateway_rest_api" "api" {
   }
   
   tags = var.tags
+  
+  # 添加lifecycle块以处理已存在资源
+  lifecycle {
+    # 避免删除已存在的API
+    prevent_destroy = true
+    # 忽略某些难以更新的属性
+    ignore_changes = [
+      body,
+      policy
+    ]
+  }
 }
 
 # API Gateway资源（路径）
