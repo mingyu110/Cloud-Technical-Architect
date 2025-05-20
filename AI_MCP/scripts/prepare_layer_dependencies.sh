@@ -39,12 +39,11 @@ echo -e "${BLUE}===== 开始准备Lambda Layer依赖（容器化构建）=====${
 echo -e "${BLUE}临时目录: $TEMP_DIR${NC}"
 echo -e "${BLUE}使用镜像: $PYTHON_IMAGE${NC}"
 
-# 创建requirements.txt文件 - 包含MCPEngine和Context7依赖
+# 创建requirements.txt文件 - 包含MCPEngine依赖
 cat > "$TEMP_DIR/requirements.txt" << EOF
 boto3>=1.28.0
 requests>=2.31.0
 mcpengine>=2.0
-@upstash/context7-mcp>=0.1.0
 pytest>=7.4.0
 pydantic>=2.0.0
 EOF
@@ -66,7 +65,7 @@ cat "$TEMP_DIR/.pip/pip.conf"
 
 # 使用Docker安装依赖
 echo -e "${BLUE}使用Docker安装依赖...${NC}"
-echo -e "${BLUE}这将安装MCPEngine 2.0+和Context7支持...${NC}"
+echo -e "${BLUE}这将安装MCPEngine 2.0+，支持Context功能...${NC}"
 
 # AWS Lambda镜像已经包含Python和pip
 docker run --rm --entrypoint /bin/bash -v "$TEMP_DIR:/var/task" $PYTHON_IMAGE -c "
@@ -88,10 +87,6 @@ fi
 echo -e "${BLUE}检查ZIP文件内容:${NC}"
 if ! unzip -l "$TEMP_DIR/layer.zip" | grep -i "pydantic"; then
     echo -e "${YELLOW}警告：未在ZIP文件中找到pydantic包${NC}"
-fi
-
-if ! unzip -l "$TEMP_DIR/layer.zip" | grep -i "context7"; then
-    echo -e "${YELLOW}警告：未在ZIP文件中找到Context7相关包${NC}"
 fi
 
 # 复制ZIP文件到当前目录

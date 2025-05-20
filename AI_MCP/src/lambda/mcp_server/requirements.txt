@@ -1,3 +1,2 @@
 mcpengine>=2.0
-requests>=2.31.0
-@upstash/context7-mcp>=0.1.0 
+requests>=2.31.0 

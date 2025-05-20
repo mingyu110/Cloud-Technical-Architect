@@ -52,11 +52,11 @@ module "order_mock_api" {
   }
 }
 
-# Lambda函数 - MCP服务器 (支持Context7)
+# Lambda函数 - MCP服务器 (支持Context)
 module "mcp_server" {
   source      = "../modules/lambda"
   name        = "mcp-order-status-server"
-  description = "MCP订单状态服务器 (支持Context7)"
+  description = "MCP订单状态服务器 (支持Context)"
   handler     = "mcp_server.lambda_handler"
   runtime     = "python3.10"
   source_path = "${path.module}/../../src/lambda/mcp_server"
@@ -66,8 +66,8 @@ module "mcp_server" {
   environment_variables = {
     ENVIRONMENT = var.environment
     MOCK_API_URL = "${module.order_mock_api_gateway.invoke_url}"
-    # 添加Context7相关环境变量
-    CONTEXT7_ENABLED = "true"
+    # 添加Context相关环境变量
+    CONTEXT_ENABLED = "true"
   }
 
   layers = [
@@ -77,15 +77,15 @@ module "mcp_server" {
   tags = {
     Project     = "AI_MCP"
     Environment = var.environment
-    Features    = "Context7-enabled"
+    Features    = "Context-enabled"
   }
 }
 
-# Lambda函数 - MCP客户端 (支持Context7)
+# Lambda函数 - MCP客户端 (支持Context)
 module "mcp_client" {
   source      = "../modules/lambda"
   name        = "mcp-client"
-  description = "MCP客户端，集成Bedrock和Context7"
+  description = "MCP客户端，集成Bedrock和Context"
   handler     = "mcp_client.lambda_handler"
   runtime     = "python3.10"
   source_path = "${path.module}/../../src/lambda/mcp_client"
@@ -96,8 +96,8 @@ module "mcp_client" {
     ENVIRONMENT = var.environment
     MCP_SERVER_URL = "${module.mcp_server_api_gateway.invoke_url}"
     MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
-    # 添加Context7相关环境变量
-    CONTEXT7_ENABLED = "true"
+    # 添加Context相关环境变量
+    CONTEXT_ENABLED = "true"
   }
 
   layers = [
@@ -107,7 +107,7 @@ module "mcp_client" {
   tags = {
     Project     = "AI_MCP"
     Environment = var.environment
-    Features    = "Context7-enabled"
+    Features    = "Context-enabled"
   }
 
   additional_policies = [
