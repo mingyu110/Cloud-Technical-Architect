@@ -43,7 +43,7 @@ echo -e "${BLUE}使用镜像: $PYTHON_IMAGE${NC}"
 cat > "$TEMP_DIR/requirements.txt" << EOF
 boto3>=1.28.0
 requests>=2.31.0
-mcpengine>=2.0
+mcpengine>=0.3.0
 pytest>=7.4.0
 pydantic>=2.0.0
 EOF
@@ -65,7 +65,7 @@ cat "$TEMP_DIR/.pip/pip.conf"
 
 # 使用Docker安装依赖
 echo -e "${BLUE}使用Docker安装依赖...${NC}"
-echo -e "${BLUE}这将安装MCPEngine 2.0+，支持Context功能...${NC}"
+echo -e "${BLUE}这将安装MCPEngine 0.3.0+，支持Context功能...${NC}"
 
 # AWS Lambda镜像已经包含Python和pip
 docker run --rm --entrypoint /bin/bash -v "$TEMP_DIR:/var/task" $PYTHON_IMAGE -c "

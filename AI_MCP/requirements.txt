@@ -1,4 +1,4 @@
 boto3>=1.28.0
 requests>=2.31.0
-mcpengine>=2.0
+mcpengine>=0.3.0
 pytest>=7.4.0
