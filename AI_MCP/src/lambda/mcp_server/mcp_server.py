@@ -3,10 +3,26 @@ import logging
 import os
 import requests
 import time
+import sys
+import pkgutil
 
 # 配置日志
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# 添加Lambda Layer路径
+lambda_task_root = os.environ.get('LAMBDA_TASK_ROOT', '')
+layer_path = '/opt/python'
+if os.path.exists(layer_path):
+    logger.info(f"添加Layer路径: {layer_path}")
+    sys.path.insert(0, layer_path)
+
+# 添加调试信息
+logger.info(f"Python版本: {sys.version}")
+logger.info(f"Python路径: {sys.path}")
+logger.info(f"环境变量: {dict(os.environ)}")
+available_modules = [name for _, name, _ in pkgutil.iter_modules()]
+logger.info(f"可用模块列表: {available_modules}")
 
 # 尝试多种可能的导入路径
 try:

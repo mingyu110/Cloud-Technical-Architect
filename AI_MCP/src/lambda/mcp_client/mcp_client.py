@@ -5,7 +5,20 @@ import boto3
 import requests
 import time
 import uuid
+import sys
+import pkgutil
 from botocore.config import Config
+
+# 添加日志配置
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# 添加调试信息
+logger.info(f"Python版本: {sys.version}")
+logger.info(f"Python路径: {sys.path}")
+logger.info(f"环境变量: {dict(os.environ)}")
+available_modules = [name for _, name, _ in pkgutil.iter_modules()]
+logger.info(f"可用模块列表: {available_modules}")
 
 # 尝试多种可能的导入路径获取MCPClient
 try:
