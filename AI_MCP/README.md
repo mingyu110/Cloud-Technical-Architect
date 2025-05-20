@@ -1,6 +1,7 @@
 # AI_MCP 项目
 
-基于AWS BedRock、AWS Lambda、AWS API Gateway和MCP打造的客户支持聊天机器人系统。
+- 基于AWS BedRock、AWS Lambda、AWS API Gateway和MCP打造的客户支持聊天机器人系统。
+- 注意：目前该项目还有问题没有解决，所以暂时不可用，正在修复中！！
 
 ## 项目结构
 
