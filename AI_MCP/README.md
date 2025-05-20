@@ -36,14 +36,14 @@ AI_MCP
 ### 2. MCP服务器 (mcp_server)
 
 - 功能：实现MCP (Model Control Protocol) 服务器，提供订单查询工具
-- 技术：AWS Lambda + API Gateway + FastMCP框架
+- 技术：AWS Lambda + API Gateway
 - 工具：get_order_status - 获取订单状态
 - 健康检查：支持GET `/health` 端点
 
 ### 3. MCP客户端 (mcp_client)
 
 - 功能：集成AWS Bedrock，处理用户查询，调用MCP服务器
-- 技术：AWS Lambda + API Gateway + AWS Bedrock + FastMCP客户端SDK
+- 技术：AWS Lambda + API Gateway + AWS Bedrock
 - 处理：解析用户查询，提取订单信息，调用LLM生成自然语言响应
 - 模型：默认使用Claude v2 (anthropic.claude-v2)，可通过环境变量配置
 - 健康检查：支持GET `/health` 查询和错误统计
@@ -51,7 +51,7 @@ AI_MCP
 ### 4. 共享依赖层 (Lambda Layer)
 
 - 功能：共享Python依赖，提高部署效率，减小Lambda包大小
-- 包含：fastmcp>=2.0, requests>=2.31.0, boto3>=1.28.0, pytest>=7.4.0, pydantic>=2.4.2,<2.5.0等库
+- 包含：requests>=2.31.0, boto3>=1.28.0, pytest>=7.4.0, pydantic>=2.4.2,<2.5.0等库
 - 兼容：Python 3.10 运行时
 - 部署：通过AWS控制台创建，提高构建速度和稳定性
 
@@ -77,8 +77,7 @@ AI_MCP
    ```
    
    脚本会自动：
-   - 安装所有必要的依赖（包括boto3, requests, fastmcp, pydantic等）
-   - 确保 fastmcp>=2.0 与 pydantic 的版本兼容
+   - 安装所有必要的依赖（包括boto3, requests, pydantic等）
    - 打包依赖为layer.zip文件
    - 在当前目录生成可直接上传的ZIP文件
 
@@ -97,7 +96,7 @@ AI_MCP
    - Layer创建完成后，在Layer详情页面复制ARN
    - ARN格式类似：`arn:aws:lambda:us-east-1:123456789012:layer:mcp-dependencies:1`
 
-> **注意**：使用脚本方式创建Layer比手动安装依赖更可靠，特别是对于解决pydantic相关的依赖问题。
+> **注意**：使用脚本方式创建Layer比手动安装依赖更可靠。
 
 ### 使用Terraform部署应用
 
@@ -198,54 +197,6 @@ curl -X POST "$(terraform output -raw chatbot_api_url)" \
 }
 ```
 
-## FastMCP集成说明
-
-本项目使用FastMCP框架作为MCP(Model Control Protocol)的实现，实现了客户端和服务端的集成。
-
-### MCP服务端
-
-服务端使用FastMCP框架创建工具并处理调用：
-
-```python
-from fastmcp import FastMCP
-
-# 创建MCP服务器
-mcp = FastMCP("order_status_server")
-
-# 定义工具
-@mcp.tool()
-async def get_order_status(order_id: str) -> str:
-    # 实现订单状态查询逻辑
-    ...
-
-# 在Lambda处理函数中使用
-def lambda_handler(event, context):
-    # 处理健康检查等非MCP请求
-    ...
-    
-    # 处理MCP请求
-    response_body = mcp.handle_lambda_event(event)
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
-        'body': json.dumps(response_body)
-    }
-```
-
-### MCP客户端
-
-客户端使用MCPClient连接到服务端：
-
-```python
-from fastmcp import MCPClient
-
-# 初始化MCP客户端
-mcp_client = MCPClient(server_url=MCP_SERVER_URL)
-
-# 调用MCP工具
-result = mcp_client.call_tool("get_order_status", order_id="12345")
-```
-
 ## 故障排除
 
 如果遇到部署或功能问题，请检查：
@@ -255,16 +206,11 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
    - 确认 Lambda Layer 已正确配置和部署
    - 使用部署脚本重新部署以解决依赖问题
 
-2. **FastMCP相关问题**：
-   - 确保FastMCP已正确安装在Lambda Layer中
-   - CloudWatch日志中查看是否有导入错误
-   - 尝试使用`./scripts/deploy.sh`重新部署，它包含特殊的FastMCP检测和安装步骤
-
-3. **API Gateway配置**：
+2. **API Gateway配置**：
    - 检查 API Gateway 阶段是否正确部署
    - 确认 Lambda 权限是否允许 API Gateway 调用
 
-4. **Bedrock访问权限**：
+3. **Bedrock访问权限**：
    - 确认 MCP 客户端 Lambda 有合适的 Bedrock 调用权限
    - 检查是否使用了正确的模型 ID
 
@@ -272,13 +218,7 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
 
 如果通过 API Gateway 访问 Lambda 函数时收到 "Internal server error" 错误，可以尝试以下解决方法：
 
-1. **检查FastMCP依赖**：
-   ```bash
-   # 手动安装FastMCP并重新部署
-   ./scripts/deploy.sh
-   ```
-
-2. **直接调用 Lambda 函数进行测试**：
+1. **直接调用 Lambda 函数进行测试**：
    ```bash
    # 创建测试事件文件
    echo '{"httpMethod":"GET","path":"/health"}' > test_event.json
@@ -292,7 +232,7 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
    cat response.json
    ```
 
-3. **检查日志**：
+2. **检查日志**：
    ```bash
    # 获取最新的日志
    aws logs get-log-events \
@@ -301,14 +241,6 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
        --log-group-name /aws/lambda/mcp-order-status-server \
        --order-by LastEventTime --descending --limit 1 \
        --query 'logStreams[0].logStreamName' --output text)
-   ```
-
-4. **降级测试**：
-   如果怀疑是FastMCP导致的问题，可以尝试使用HTTP降级方式调用：
-   ```bash
-   curl -X POST "$(terraform output -raw mcp_server_url)" \
-     -H "Content-Type: application/json" \
-     -d '{"tool_name": "get_order_status", "params": {"order_id": "12345"}}'
    ```
 
 ### Lambda Layer依赖问题
@@ -328,11 +260,9 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
    ```
    boto3>=1.28.0
    requests>=2.31.0
-   fastmcp>=2.0
    pytest>=7.4.0
    pydantic>=2.4.2,<2.5.0
    ```
-   请注意 fastmcp 和 pydantic 的版本兼容性非常重要
 
 3. **检查CloudWatch日志**：
    查看Lambda执行日志，确认具体的依赖错误信息
@@ -358,6 +288,6 @@ result = mcp_client.call_tool("get_order_status", order_id="12345")
 ## 开发指南
 
 - 修改订单模拟数据：编辑 `src/lambda/order_mock_api/order_mock_api.py`
-- 添加新的MCP工具：编辑 `src/lambda/mcp_server/mcp_server.py`，添加新的`@mcp.tool()`装饰器函数
+- 添加新的MCP工具：编辑 `src/lambda/mcp_server/mcp_server.py`
 - 调整LLM提示模板：编辑 `src/lambda/mcp_client/mcp_client.py`
 - 更改 Bedrock 模型：通过环境变量 `MODEL_ID` 配置
