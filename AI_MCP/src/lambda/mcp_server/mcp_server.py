@@ -161,3 +161,7 @@ async def get_order_status(order_id: str, ctx: Context = None) -> str:
 
 # 使用MCPEngine内置的Lambda处理器
 handler = engine.get_lambda_handler() 
+
+# 添加与Lambda期望一致的入口点
+def lambda_handler(event, context):
+    return handler(event, context) 
