@@ -58,13 +58,10 @@ resource "aws_lambda_function" "lambda" {
   
   tags = var.tags
   
-  # 添加lifecycle块，忽略已存在资源的某些更改
+  # 添加lifecycle块，但允许更新代码
   lifecycle {
     ignore_changes = [
-      # 忽略某些难以更新的属性
-      filename,
-      source_code_hash,
-      # 对于Context7相关配置，确保不尝试重新创建
+      # 只忽略层配置，允许代码更新
       layers
     ]
     # 创建新资源前先删除旧资源，避免命名冲突

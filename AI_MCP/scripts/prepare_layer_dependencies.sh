@@ -43,9 +43,10 @@ echo -e "${BLUE}使用镜像: $PYTHON_IMAGE${NC}"
 cat > "$TEMP_DIR/requirements.txt" << EOF
 boto3>=1.28.0
 requests>=2.31.0
-mcpengine>=0.3.0
+mcpengine[lambda]>=0.3.0
 pytest>=7.4.0
 pydantic>=2.0.0
+mangum>=0.17.0
 EOF
 
 # 创建pip配置文件

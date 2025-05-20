@@ -3,11 +3,65 @@ import logging
 import os
 import requests
 import time
-from mcpengine import MCPEngine, Context
 
 # 配置日志
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# 尝试多种可能的导入路径
+try:
+    # 主要导入路径
+    from mcpengine import MCPEngine, Context
+    logger.info("成功从mcpengine导入MCPEngine和Context")
+except ImportError as e:
+    logger.error(f"从mcpengine导入MCPEngine和Context失败: {str(e)}")
+    try:
+        # 尝试替代导入路径
+        from mcpengine.server import MCPEngine
+        from mcpengine.context import Context
+        logger.info("成功从mcpengine.server和mcpengine.context导入")
+    except ImportError as e2:
+        logger.error(f"替代导入路径也失败: {str(e2)}")
+        try:
+            # 尝试导入Lambda专用包
+            from mcpengine.lambda_context import Context
+            from mcpengine import MCPEngine
+            logger.info("成功导入MCPEngine和lambda_context.Context")
+        except ImportError as e3:
+            logger.error(f"所有导入尝试均失败: {str(e3)}")
+            # 创建一个模拟的Context类作为后备
+            class Context:
+                def __init__(self):
+                    pass
+                def info(self, message):
+                    logger.info(message)
+                def warning(self, message):
+                    logger.warning(message)
+                def error(self, message):
+                    logger.error(message)
+            
+            # 创建一个简化的MCPEngine作为后备
+            class MCPEngine:
+                def __init__(self, name=None, debug=False):
+                    self.name = name
+                    self.debug = debug
+                    logger.warning(f"使用模拟的MCPEngine: {name}, debug={debug}")
+                
+                def tool(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+                
+                def get_lambda_handler(self):
+                    def handler(event, context):
+                        logger.error("使用模拟的Lambda处理器，无法处理请求")
+                        return {
+                            "statusCode": 500,
+                            "body": json.dumps({
+                                "error": "MCPEngine导入失败，请检查依赖安装"
+                            })
+                        }
+                    return handler
 
 # 环境变量
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')

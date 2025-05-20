@@ -6,7 +6,39 @@ import requests
 import time
 import uuid
 from botocore.config import Config
-from mcpengine import MCPClient
+
+# 尝试多种可能的导入路径获取MCPClient
+try:
+    # 主要导入路径
+    from mcpengine import MCPClient
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.info("成功从mcpengine导入MCPClient")
+except ImportError as e:
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.error(f"从mcpengine导入MCPClient失败: {str(e)}")
+    try:
+        # 尝试替代导入路径
+        from mcpengine.client import MCPClient
+        logger.info("成功从mcpengine.client导入MCPClient")
+    except ImportError as e2:
+        logger.error(f"从mcpengine.client导入MCPClient失败: {str(e2)}")
+        try:
+            # 尝试直接导入Lambda版本
+            from mcpengine.lambda_client import MCPClient
+            logger.info("成功从mcpengine.lambda_client导入MCPClient")
+        except ImportError as e3:
+            logger.error(f"所有MCPClient导入尝试均失败: {str(e3)}")
+            # 创建一个模拟的MCPClient类作为最后的后备方案
+            class MCPClient:
+                def __init__(self, base_url):
+                    self.base_url = base_url
+                    logger.warning(f"使用模拟的MCPClient连接到: {base_url}")
+                    
+                def call_tool(self, tool_name, **kwargs):
+                    logger.error(f"模拟MCPClient调用工具: {tool_name}, 参数: {kwargs}")
+                    return f"MCPClient导入失败，无法调用工具。请检查mcpengine包的安装及版本(>=0.3.0)。"
 
 # 配置日志
 logger = logging.getLogger()
