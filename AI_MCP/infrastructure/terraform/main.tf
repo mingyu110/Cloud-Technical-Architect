@@ -39,7 +39,7 @@ module "order_mock_api" {
   name        = "order-mock-api"
   description = "订单状态模拟API"
   handler     = "order_mock_api.lambda_handler"
-  runtime     = "python3.10"
+  runtime     = "python3.11"
   source_path = "${path.module}/../../src/lambda/order_mock_api"
   
   environment_variables = {
@@ -58,7 +58,7 @@ module "mcp_server" {
   name        = "mcp-order-status-server"
   description = "MCP订单状态服务器 (支持Context)"
   handler     = "mcp_server.lambda_handler"
-  runtime     = "python3.10"
+  runtime     = "python3.11"
   source_path = "${path.module}/../../src/lambda/mcp_server"
   timeout     = 30
   memory_size = 256
@@ -87,7 +87,7 @@ module "mcp_client" {
   name        = "mcp-client"
   description = "MCP客户端，集成Bedrock和Context"
   handler     = "mcp_client.lambda_handler"
-  runtime     = "python3.10"
+  runtime     = "python3.11"
   source_path = "${path.module}/../../src/lambda/mcp_client"
   timeout     = 120
   memory_size = 1024
@@ -95,6 +95,7 @@ module "mcp_client" {
   environment_variables = {
     ENVIRONMENT = var.environment
     MCP_SERVER_URL = "${module.mcp_server_api_gateway.invoke_url}"
+    MCP_SERVER_FUNCTION = "mcp-order-status-server"
     MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
     # 添加Context相关环境变量
     CONTEXT_ENABLED = "true"
@@ -132,8 +133,17 @@ resource "aws_iam_policy" "bedrock_invoke_policy" {
           "bedrock:InvokeModelWithResponseStream"
         ],
         Resource = [
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+          "arn:aws:bedrock:${var.aws_region}:*:foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+          "arn:aws:bedrock:${var.aws_region}:*:foundation-model/anthropic.claude-v2",
+          "arn:aws:bedrock:${var.aws_region}:*:foundation-model/*"
         ]
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "bedrock:*"
+        ],
+        Resource = "*"
       }
     ]
   })
@@ -143,6 +153,34 @@ resource "aws_iam_policy" "bedrock_invoke_policy" {
 resource "aws_iam_role_policy_attachment" "bedrock_invoke_attachment" {
   role       = module.mcp_client.role_name
   policy_arn = aws_iam_policy.bedrock_invoke_policy.arn
+}
+
+# 为 MCP 客户端创建 Lambda 调用权限
+resource "aws_iam_policy" "lambda_invoke_policy" {
+  name        = "lambda-invoke-policy"
+  description = "允许调用其他 Lambda 函数"
+  
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "lambda:InvokeFunction",
+          "lambda:InvokeAsync"
+        ],
+        Resource = [
+          module.mcp_server.function_arn
+        ]
+      }
+    ]
+  })
+}
+
+# 附加 Lambda 调用权限
+resource "aws_iam_role_policy_attachment" "lambda_invoke_attachment" {
+  role       = module.mcp_client.role_name
+  policy_arn = aws_iam_policy.lambda_invoke_policy.arn
 }
 
 # API Gateway - Mock API

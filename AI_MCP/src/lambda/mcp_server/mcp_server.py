@@ -24,60 +24,26 @@ logger.info(f"环境变量: {dict(os.environ)}")
 available_modules = [name for _, name, _ in pkgutil.iter_modules()]
 logger.info(f"可用模块列表: {available_modules}")
 
-# 尝试多种可能的导入路径
+# 尝试导入MCP服务器
 try:
-    # 主要导入路径
-    from mcpengine import MCPEngine, Context
-    logger.info("成功从mcpengine导入MCPEngine和Context")
+    # 使用AWS Lambda适配器
+    from mcp.server.stdio import StdioServerParameters
+    from mcp_lambda.stdio_server_adapter import stdio_server_adapter
+    logger.info("成功导入MCP服务器和Lambda适配器")
+    USE_MCP_SERVER = True
 except ImportError as e:
-    logger.error(f"从mcpengine导入MCPEngine和Context失败: {str(e)}")
-    try:
-        # 尝试替代导入路径
-        from mcpengine.server import MCPEngine
-        from mcpengine.context import Context
-        logger.info("成功从mcpengine.server和mcpengine.context导入")
-    except ImportError as e2:
-        logger.error(f"替代导入路径也失败: {str(e2)}")
-        try:
-            # 尝试导入Lambda专用包
-            from mcpengine.lambda_context import Context
-            from mcpengine import MCPEngine
-            logger.info("成功导入MCPEngine和lambda_context.Context")
-        except ImportError as e3:
-            logger.error(f"所有导入尝试均失败: {str(e3)}")
-            # 创建一个模拟的Context类作为后备
-            class Context:
-                def __init__(self):
-                    pass
-                def info(self, message):
-                    logger.info(message)
-                def warning(self, message):
-                    logger.warning(message)
-                def error(self, message):
-                    logger.error(message)
-            
-            # 创建一个简化的MCPEngine作为后备
-            class MCPEngine:
-                def __init__(self, name=None, debug=False):
-                    self.name = name
-                    self.debug = debug
-                    logger.warning(f"使用模拟的MCPEngine: {name}, debug={debug}")
-                
-                def tool(self):
-                    def decorator(func):
-                        return func
-                    return decorator
-                
-                def get_lambda_handler(self):
-                    def handler(event, context):
-                        logger.error("使用模拟的Lambda处理器，无法处理请求")
-                        return {
-                            "statusCode": 500,
-                            "body": json.dumps({
-                                "error": "MCPEngine导入失败，请检查依赖安装"
-                            })
-                        }
-                    return handler
+    logger.error(f"导入MCP服务器失败: {str(e)}")
+    USE_MCP_SERVER = False
+    # 创建一个模拟的Context类作为后备
+    class Context:
+        def __init__(self):
+            pass
+        def info(self, message):
+            logger.info(message)
+        def warning(self, message):
+            logger.warning(message)
+        def error(self, message):
+            logger.error(message)
 
 # 环境变量
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
@@ -88,20 +54,14 @@ if not MOCK_API_URL:
     logger.warning("MOCK_API_URL环境变量未设置，使用默认值 http://localhost")
     MOCK_API_URL = "http://localhost"
 
-# 创建MCP服务器实例 - 配置为使用Context7
-engine = MCPEngine(
-    name="OrderStatusMCP",  # 为服务器命名，便于识别
-    debug=ENVIRONMENT == "dev"  # 在开发环境下启用调试模式
-)
-
-@engine.tool()
-async def get_order_status(order_id: str, ctx: Context = None) -> str:
+# 定义获取订单状态的函数
+async def get_order_status(order_id: str, ctx = None) -> str:
     """
     获取订单状态
     
     参数:
         order_id (str): 订单ID
-        ctx (Context): 上下文对象，提供用户信息和日志等功能
+        ctx: 上下文对象，提供用户信息和日志等功能
         
     返回:
         str: 订单状态信息
@@ -175,8 +135,94 @@ async def get_order_status(order_id: str, ctx: Context = None) -> str:
                     logger.error(f"在{max_retries}次尝试后仍然失败")
                 return f"无法获取订单 {order_id} 的状态，服务暂时不可用。"
 
-# 使用MCPEngine内置的Lambda处理器
-handler = engine.get_lambda_handler() 
+def create_server_adapter():
+    """创建MCP服务器适配器"""
+    if USE_MCP_SERVER:
+        try:
+            # 创建服务器适配器
+            from mcp.tool import tool, Context, Annotated
+            from mcp.server.stdio import create_server
+            
+            # 使用工具装饰器定义工具
+            @tool("get_order_status")
+            async def get_order_status_tool(
+                order_id: str,
+                ctx: Annotated[Context, Context]
+            ) -> str:
+                """获取订单状态信息"""
+                return await get_order_status(order_id, ctx)
+            
+            # 创建stdio服务器
+            server = create_server(tools=[get_order_status_tool])
+            
+            # 创建Lambda适配器
+            adapter = stdio_server_adapter(
+                server_parameters=StdioServerParameters(),
+                server_factory=lambda: server
+            )
+            
+            logger.info("成功创建MCP服务器适配器")
+            return adapter
+        except Exception as e:
+            logger.error(f"创建MCP服务器适配器时出错: {str(e)}")
+            # 返回一个简单的处理函数作为后备
+            return lambda event, context: {
+                "statusCode": 500,
+                "body": json.dumps({
+                    "error": f"创建MCP服务器适配器失败: {str(e)}"
+                })
+            }
+    else:
+        logger.warning("使用后备处理函数，不支持标准MCP协议")
+        # 返回一个简单的处理函数作为后备
+        return lambda event, context: handle_request_fallback(event, context)
+
+def handle_request_fallback(event, context):
+    """后备请求处理函数"""
+    logger.info(f"使用后备处理函数处理请求: {event}")
+    try:
+        # 解析请求体
+        if 'body' in event and event['body']:
+            body = json.loads(event['body'])
+            tool_name = body.get('tool_name')
+            params = body.get('params', {})
+            
+            if tool_name == 'get_order_status':
+                order_id = params.get('order_id', '12345')
+                # 同步调用get_order_status
+                import asyncio
+                result = asyncio.run(get_order_status(order_id))
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps({
+                        "result": result
+                    })
+                }
+            else:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps({
+                        "error": f"不支持的工具: {tool_name}"
+                    })
+                }
+        
+        return {
+            "statusCode": 400,
+            "body": json.dumps({
+                "error": "无效的请求格式"
+            })
+        }
+    except Exception as e:
+        logger.error(f"处理请求时出错: {str(e)}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({
+                "error": f"服务器内部错误: {str(e)}"
+            })
+        }
+
+# 创建Lambda处理函数
+handler = create_server_adapter()
 
 # 添加与Lambda期望一致的入口点
 def lambda_handler(event, context):

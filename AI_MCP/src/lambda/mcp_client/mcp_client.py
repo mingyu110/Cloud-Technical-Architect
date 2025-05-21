@@ -20,38 +20,40 @@ logger.info(f"环境变量: {dict(os.environ)}")
 available_modules = [name for _, name, _ in pkgutil.iter_modules()]
 logger.info(f"可用模块列表: {available_modules}")
 
-# 尝试多种可能的导入路径获取MCPClient
+# 尝试导入MCP客户端
 try:
-    # 主要导入路径
-    from mcpengine import MCPClient
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.info("成功从mcpengine导入MCPClient")
+    # 使用标准MCP客户端
+    from mcp import ClientSession
+    from mcp_lambda import LambdaFunctionParameters, lambda_function_client
+    logger.info("成功从mcp导入ClientSession和lambda_function_client")
+    USE_MCP_CLIENT = True
 except ImportError as e:
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.error(f"从mcpengine导入MCPClient失败: {str(e)}")
-    try:
-        # 尝试替代导入路径
-        from mcpengine.client import MCPClient
-        logger.info("成功从mcpengine.client导入MCPClient")
-    except ImportError as e2:
-        logger.error(f"从mcpengine.client导入MCPClient失败: {str(e2)}")
-        try:
-            # 尝试直接导入Lambda版本
-            from mcpengine.lambda_client import MCPClient
-            logger.info("成功从mcpengine.lambda_client导入MCPClient")
-        except ImportError as e3:
-            logger.error(f"所有MCPClient导入尝试均失败: {str(e3)}")
-            # 创建一个模拟的MCPClient类作为最后的后备方案
-            class MCPClient:
-                def __init__(self, base_url):
-                    self.base_url = base_url
-                    logger.warning(f"使用模拟的MCPClient连接到: {base_url}")
-                    
-                def call_tool(self, tool_name, **kwargs):
-                    logger.error(f"模拟MCPClient调用工具: {tool_name}, 参数: {kwargs}")
-                    return f"MCPClient导入失败，无法调用工具。请检查mcpengine包的安装及版本(>=0.3.0)。"
+    logger.error(f"从mcp导入ClientSession失败: {str(e)}")
+    USE_MCP_CLIENT = False
+    # 创建一个模拟的MCP客户端类作为后备方案
+    class FallbackMCPClient:
+        def __init__(self, base_url):
+            self.base_url = base_url
+            logger.warning(f"使用模拟的MCP客户端连接到: {base_url}")
+            
+        def call_tool(self, tool_name, **kwargs):
+            logger.error(f"模拟MCP客户端调用工具: {tool_name}, 参数: {kwargs}")
+            try:
+                # 尝试直接通过HTTP调用MCP服务器
+                url = f"{self.base_url}"
+                payload = {
+                    "tool_name": tool_name,
+                    "params": kwargs
+                }
+                logger.info(f"尝试HTTP调用MCP服务器: {url}, payload: {payload}")
+                response = requests.post(url, json=payload, timeout=10)
+                if response.status_code == 200:
+                    return response.json().get("result", f"获取工具调用结果失败")
+                else:
+                    return f"调用MCP服务返回错误: {response.status_code}"
+            except Exception as e:
+                logger.error(f"HTTP调用MCP服务出错: {str(e)}")
+                return f"无法连接到MCP服务器。请确保服务正常运行并检查网络连接。"
 
 # 配置日志
 logger = logging.getLogger()
@@ -68,6 +70,7 @@ error_stats = {
 # 环境变量
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")
 MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL")
+MCP_SERVER_FUNCTION = os.environ.get("MCP_SERVER_FUNCTION", "mcp-order-status-server")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 MODEL_ID = os.environ.get("MODEL_ID", "anthropic.claude-v2")
 
@@ -78,6 +81,7 @@ if not MCP_SERVER_URL:
 
 logger.info(f"当前环境: {ENVIRONMENT}")
 logger.info(f"使用MCP服务器: {MCP_SERVER_URL}")
+logger.info(f"使用MCP服务器函数: {MCP_SERVER_FUNCTION}")
 logger.info(f"使用AWS区域: {AWS_REGION}")
 logger.info(f"使用模型ID: {MODEL_ID}")
 
@@ -90,16 +94,25 @@ bedrock_runtime = boto3.client(
 
 # 初始化MCP客户端
 try:
-    mcp_client = MCPClient(MCP_SERVER_URL)
-    logger.info(f"成功连接到MCP服务器: {MCP_SERVER_URL}")
+    if USE_MCP_CLIENT:
+        # 使用Lambda函数作为MCP服务器
+        mcp_client = ClientSession(
+            transport=lambda_function_client(
+                LambdaFunctionParameters(
+                    function_name=MCP_SERVER_FUNCTION,
+                    region_name=AWS_REGION
+                )
+            )
+        )
+        logger.info(f"成功初始化标准MCP客户端，使用Lambda函数: {MCP_SERVER_FUNCTION}")
+    else:
+        # 使用后备方案
+        mcp_client = FallbackMCPClient(MCP_SERVER_URL)
+        logger.info(f"使用后备MCP客户端连接到: {MCP_SERVER_URL}")
 except Exception as e:
     logger.error(f"初始化MCP客户端时出错: {str(e)}")
     # 创建一个空壳MCP客户端作为应急措施
-    class FallbackMCPClient:
-        def call_tool(self, tool_name, **kwargs):
-            logger.error(f"使用空壳MCP客户端调用工具 {tool_name}")
-            return f"无法连接到MCP服务器，服务暂时不可用。"
-    mcp_client = FallbackMCPClient()
+    mcp_client = FallbackMCPClient(MCP_SERVER_URL)
 
 def get_order_status(order_id):
     """获取订单状态"""
@@ -114,7 +127,10 @@ def get_order_status(order_id):
     try:
         logger.info(f"准备调用MCP服务器获取订单 {order_id} 的状态")
         # 使用MCP客户端调用get_order_status工具
-        result = mcp_client.call_tool("get_order_status", order_id=order_id)
+        if USE_MCP_CLIENT:
+            result = mcp_client.tools.get_order_status(order_id=order_id)
+        else:
+            result = mcp_client.call_tool("get_order_status", order_id=order_id)
         
         # 验证结果
         if not result:
