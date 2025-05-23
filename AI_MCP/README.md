@@ -1,294 +1,405 @@
 # AI_MCP 项目
 
-- 基于AWS BedRock、AWS Lambda、AWS API Gateway和MCP打造的客户支持聊天机器人系统。
-- 注意：目前该项目还有问题没有解决，所以暂时不可用，正在修复中！！
+## 项目概述
+
+基于AWS Bedrock、AWS Lambda、AWS API Gateway和MCP打造的智能客户支持聊天机器人系统。该项目实现了最新的Model Context Protocol (MCP) v2025.03.26规范，采用Streamable HTTP Transport技术，提供完整的订单查询和AI对话功能。
+
+## 🚀 快速开始
+
+**全新自动化脚本，5分钟完成部署！**
+
+```bash
+# 1. 克隆项目并进入目录
+git clone <repository-url>
+cd AI_MCP
+
+# 2. 一键构建和部署Layer（解决所有兼容性问题）
+./scripts/prepare_py311_layer.sh
+
+# 3. 部署基础设施
+cd infrastructure/terraform
+terraform init && terraform apply
+
+# 4. 测试所有API
+cd ../..
+./scripts/test_all_apis.sh
+
+# 5. 如有问题，运行调试工具
+./scripts/debug_lambda.sh  # 选择选项9进行完整诊断
+```
+
+## 技术架构
+
+### MCP v2025.03.26 规范
+
+Anthropic于2025年3月发布了Model Context Protocol (MCP) v2025.03.26，引入了**Streamable HTTP Transport**，替换了之前的HTTP+SSE传输协议。本项目实现了完整的MCP规范，支持无状态serverless部署。
+
+### 核心特性
+
+| 特性 | 说明 | 优势 |
+|-----|-----|-----|
+| **Streamable HTTP Transport** | 基于HTTP的无状态传输 | 适合Lambda部署，成本效益高 |
+| **JSON-RPC编码** | 标准JSON-RPC 2.0协议 | 兼容性好，调试友好 |
+| **多模型支持** | Amazon Titan、Claude v2/v3 | 灵活的AI模型选择 |
+| **平台兼容性** | Linux x86_64优化构建 | 解决macOS到Lambda的兼容性问题 |
+| **自动化运维** | 完整的脚本工具链 | 一键部署、测试、调试 |
+
+### 系统架构图
+
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
+│   用户查询   │───→│ Chatbot API  │───→│ MCP Server  │───→│ Mock API     │
+│            │    │ (AI智能回复)  │    │ (工具调用)   │    │ (订单数据)    │
+└─────────────┘    └──────────────┘    └─────────────┘    └──────────────┘
+                          │                    │                   │
+                          ▼                    ▼                   ▼
+                   ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
+                   │ AWS Bedrock  │    │ FastAPI +   │    │ 独立Lambda   │
+                   │ (Titan/Claude)│    │ Mangum     │    │ 函数         │
+                   └──────────────┘    └─────────────┘    └──────────────┘
+                          │                    │                   │
+                          ▼                    ▼                   ▼
+                   ┌──────────────────────────────────────────────────────┐
+                   │           AWS Lambda + API Gateway                    │
+                   │         共享Layer: mcp-dependencies                   │
+                   └──────────────────────────────────────────────────────┘
+```
 
 ## 项目结构
 
 ```
-AI_MCP
-├── docs                      # 项目文档
-├── infrastructure            # 基础设施代码
-│   ├── modules               # Terraform模块
-│   │   ├── api_gateway       # API Gateway模块
-│   │   ├── lambda            # Lambda模块
-│   │   └── lambda_layer      # Lambda Layer模块（已弃用，改为使用AWS控制台创建Layer）
-│   └── terraform             # Terraform主配置
-├── scripts                   # 辅助脚本
-│   └── prepare_layer_dependencies.sh # 准备Layer依赖辅助脚本
-├── src                       # 源代码
-│   ├── lambda                # Lambda函数代码
-│   │   ├── mcp_client        # MCP客户端，集成Bedrock
-│   │   ├── mcp_server        # MCP服务器
-│   │   └── order_mock_api    # 订单状态模拟API
-│   └── tests                 # 测试代码
-└── requirements.txt          # 项目依赖
+AI_MCP/
+├── 📁 infrastructure/          # 基础设施即代码
+│   ├── modules/               # Terraform模块
+│   │   ├── api_gateway/       # API Gateway配置
+│   │   └── lambda/            # Lambda函数配置
+│   └── terraform/             # 主Terraform配置
+├── 📁 scripts/                # 🆕 自动化运维脚本
+│   ├── prepare_py311_layer.sh # Layer构建和部署
+│   ├── test_all_apis.sh       # 端到端API测试
+│   ├── debug_lambda.sh        # 交互式调试工具
+│   └── README.md              # 脚本使用说明
+├── 📁 src/                    # 源代码
+│   ├── lambda/
+│   │   ├── mcp_client/        # AI聊天机器人（Bedrock集成）
+│   │   ├── mcp_server/        # MCP工具服务器（FastAPI）
+│   │   └── order_mock_api/    # 订单数据模拟API
+│   └── tests/                 # 测试代码
+├── 📄 AI_MCP_Debugging_Guide.md # 🆕 完整调试实战指南
+├── 📄 requirements.txt         # Python依赖
+└── 📄 README.md               # 项目说明（本文件）
 ```
 
-## 组件说明
+## 🔧 组件详解
 
-### 1. 订单状态模拟API (order_mock_api)
+### 1. **Chatbot API** (mcp_client)
+- **功能**：智能客户服务聊天机器人
+- **AI模型**：支持Amazon Titan、Claude v2/v3
+- **特性**：订单信息提取、自然语言理解、多模型API适配
+- **端点**：`/chat` (POST)，`/health` (GET)
 
-- 功能：模拟订单数据库API，返回订单状态信息
-- 技术：AWS Lambda + API Gateway
-- 接口：接收订单ID，返回订单状态
-- 健康检查：支持GET `/health` 端点检查服务健康状态
+### 2. **MCP Server** (mcp_server)
+- **功能**：MCP工具服务器，提供订单查询工具
+- **技术**：FastAPI + Mangum + JSON-RPC 2.0
+- **工具**：`get_order_status` - 订单状态查询
+- **端点**：`/mcp` (POST)，`/health` (GET)
 
-### 2. MCP服务器 (mcp_server)
+### 3. **Mock API** (order_mock_api)
+- **功能**：订单数据模拟服务
+- **特性**：独立部署，模拟真实订单系统
+- **数据**：订单ID、状态、物流信息
+- **端点**：`/orders/{order_id}` (GET)，`/health` (GET)
 
-- 功能：实现MCP (Model Control Protocol) 服务器，提供订单查询工具
-- 技术：AWS Lambda + API Gateway
-- 工具：get_order_status - 获取订单状态
-- 健康检查：支持GET `/health` 端点
+### 4. **共享依赖层** (mcp-dependencies)
+- **优化**：Linux x86_64平台特定构建
+- **依赖**：mcp>=1.9.1, fastapi>=0.109.0, boto3>=1.37.3
+- **兼容**：Python 3.11，解决pydantic_core兼容性问题
 
-### 3. MCP客户端 (mcp_client)
+## 🚀 部署指南
 
-- 功能：集成AWS Bedrock，处理用户查询，调用MCP服务器
-- 技术：AWS Lambda + API Gateway + AWS Bedrock
-- 处理：解析用户查询，提取订单信息，调用LLM生成自然语言响应
-- 模型：默认使用Claude v2 (anthropic.claude-v2)，可通过环境变量配置
-- 健康检查：支持GET `/health` 查询和错误统计
+### 环境要求
 
-### 4. 共享依赖层 (Lambda Layer)
+- **AWS账户**：已配置CLI和适当权限
+- **工具**：Terraform 1.0+, Python 3.8+, curl, aws-cli
+- **区域**：推荐us-east-1（Bedrock可用区域）
+- **权限**：Lambda、API Gateway、Bedrock、CloudWatch Logs
 
-- 功能：共享Python依赖，提高部署效率，减小Lambda包大小
-- 包含：requests>=2.31.0, boto3>=1.28.0, pytest>=7.4.0, pydantic>=2.4.2,<2.5.0等库
-- 兼容：Python 3.10 运行时
-- 部署：通过AWS控制台创建，提高构建速度和稳定性
+### 自动化部署（推荐）
 
-## 部署说明
+#### 方式一：完全自动化
+```bash
+# 克隆项目
+git clone <repository-url> && cd AI_MCP
 
-### 前提条件
+# 一键部署（包含Layer构建、AWS上传、Lambda更新）
+./scripts/prepare_py311_layer.sh
 
-- AWS账户和CLI配置
-- Terraform 1.0+
-- Python 3.10+
+# 部署基础设施
+cd infrastructure/terraform
+terraform init
+terraform apply -auto-approve
 
-### 使用脚本创建Lambda Layer（推荐）
+# 验证部署
+cd ../..
+./scripts/test_all_apis.sh
+```
 
-为了简化Layer依赖准备过程并确保兼容性，项目提供了专用脚本来准备Lambda Layer：
+#### 方式二：分步部署
+```bash
+# 1. 构建Layer（解决平台兼容性）
+./scripts/prepare_py311_layer.sh
 
-1. **执行依赖准备脚本**：
-   ```bash
-   # 确保脚本有执行权限
-   chmod +x scripts/prepare_layer_dependencies.sh
-   
-   # 运行脚本准备Layer依赖
-   ./scripts/prepare_layer_dependencies.sh
-   ```
-   
-   脚本会自动：
-   - 安装所有必要的依赖（包括boto3, requests, pydantic等）
-   - 打包依赖为layer.zip文件
-   - 在当前目录生成可直接上传的ZIP文件
+# 2. 配置Terraform变量（如需自定义）
+cd infrastructure/terraform
+cp terraform.tfvars.example terraform.tfvars
+# 编辑terraform.tfvars设置区域等参数
 
-2. **在AWS控制台创建Layer**：
-   - 登录AWS管理控制台，进入Lambda服务
-   - 在左侧导航栏选择"Layers"
-   - 点击"Create layer"按钮
-   - 填写Layer基本信息：
-     - 名称：`mcp-dependencies`
-     - 描述：`MCP 系统依赖库 Layer`
-   - 在"Upload"部分选择"Upload a zip file"，上传脚本生成的layer.zip文件
-   - 选择兼容的运行时：Python 3.10
-   - 点击"Create"创建Layer
+# 3. 部署基础设施
+terraform init
+terraform plan    # 检查部署计划
+terraform apply   # 确认后部署
 
-3. **获取Layer ARN**：
-   - Layer创建完成后，在Layer详情页面复制ARN
-   - ARN格式类似：`arn:aws:lambda:us-east-1:123456789012:layer:mcp-dependencies:1`
+# 4. 端到端测试
+cd ../..
+./scripts/test_all_apis.sh
+```
 
-> **注意**：使用脚本方式创建Layer比手动安装依赖更可靠。
+### 手动部署（备用方案）
 
-### 使用Terraform部署应用
-
-1. 克隆仓库：
-   ```
-   git clone https://github.com/yourusername/AI_MCP.git
-   cd AI_MCP
-   ```
-
-2. 创建Lambda Layer并获取ARN：
-   ```bash
-   # 按照上述"使用脚本创建Lambda Layer"部分的步骤操作
-   # 确保已获取Layer ARN
-   ```
-
-3. 更新Terraform变量，提供Lambda Layer ARN：
-   ```bash
-   # 创建或编辑terraform.tfvars文件
-   echo 'lambda_layer_arn = "您的Layer ARN"' > infrastructure/terraform/terraform.tfvars
-   
-   # 您也可以手动编辑文件，确保包含：
-   # lambda_layer_arn = "arn:aws:lambda:区域:账号:layer:mcp-dependencies:版本"
-   ```
-
-4. 执行Terraform部署：
-   ```bash
-   cd infrastructure/terraform
-   terraform init
-   terraform plan  # 检查计划
-   terraform apply # 应用部署
-   ```
-
-5. 部署完成后，记录输出的API Gateway URL，用于测试服务：
-   ```bash
-   # 查看部署输出
-   terraform output
-   ```
-
-## 功能验证
-
-### 1. 验证订单模拟API
+如果自动化脚本无法使用：
 
 ```bash
-# 健康检查
-curl -X GET "$(terraform output -raw mock_api_url)/health"
+# 1. 手动构建Layer
+mkdir -p layer_build/python
+python3 -m pip install -r requirements.txt \
+  -t layer_build/python/ \
+  --platform manylinux2014_x86_64 \
+  --python-version 3.11 \
+  --only-binary=:all:
 
-# 查询订单状态
-curl -X POST "$(terraform output -raw mock_api_url)" \
-  -H "Content-Type: application/json" \
-  -d '{"order_id": "12345"}'
+cd layer_build && zip -r ../py311_layer.zip python/
+cd ..
+
+# 2. 上传Layer
+aws lambda publish-layer-version \
+  --layer-name mcp-dependencies \
+  --zip-file fileb://py311_layer.zip \
+  --compatible-runtimes python3.11
+
+# 3. 更新terraform.tfvars
+# 将获得的Layer ARN添加到配置中
+
+# 4. 部署
+cd infrastructure/terraform
+terraform apply
 ```
 
-预期输出：
-```json
-{
-  "order_id": "12345",
-  "status": "已发货",
-  "environment": "dev",
-  "request_id": "4a7d8f01-..."
-}
-```
+## 🧪 测试和验证
 
-### 2. 验证MCP服务器
+### 自动化测试
 
 ```bash
-# 健康检查
-curl -X GET "$(terraform output -raw mcp_server_url)/health"
+# 运行完整测试套件（8个测试用例）
+./scripts/test_all_apis.sh
 
-# 列出可用工具
-curl -X POST "$(terraform output -raw mcp_server_url)" \
-  -H "Content-Type: application/json" \
-  -d '{"tool_name": "__list_tools__"}'
-
-# 查询订单状态
-curl -X POST "$(terraform output -raw mcp_server_url)" \
-  -H "Content-Type: application/json" \
-  -d '{"tool_name": "get_order_status", "params": {"order_id": "12345"}}'
+# 输出示例：
+# 🧪 AI_MCP项目 - 全面API测试
+# === 测试1: Mock API - 订单状态查询 ===
+# ✅ HTTP状态码正确 (200)
+# ✅ 响应为有效JSON格式
+# === 测试结果摘要 ===
+# 总测试数: 8
+# 通过测试: 8
+# 成功率: 100%
+# 🎉 所有测试通过！系统运行正常
 ```
 
-### 3. 验证聊天机器人集成
+### 手动测试API
+
+获取部署后的API端点：
+```bash
+cd infrastructure/terraform
+terraform output
+```
+
+#### 测试Mock API
+```bash
+MOCK_API_URL="<your-mock-api-url>"
+curl "$MOCK_API_URL/orders/12345"
+# 预期输出: {"order_id": "12345", "status": "已发货，预计3天内送达"}
+```
+
+#### 测试MCP Server
+```bash
+MCP_SERVER_URL="<your-mcp-server-url>"
+curl -X POST "$MCP_SERVER_URL/mcp" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "test-1",
+    "method": "call_tool",
+    "params": {
+      "name": "get_order_status",
+      "params": {"order_id": "12345"}
+    }
+  }'
+# 预期输出: {"jsonrpc":"2.0","id":"test-1","result":"订单 12345 的状态是: 已发货，预计3天内送达"}
+```
+
+#### 测试Chatbot API
+```bash
+CHATBOT_API_URL="<your-chatbot-api-url>"
+curl -X POST "$CHATBOT_API_URL/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "查询订单12345的状态"}'
+# 预期输出: AI生成的智能中文回复
+```
+
+## 🔧 故障排除
+
+### 一键诊断工具
 
 ```bash
-# 健康检查
-curl -X GET "$(terraform output -raw chatbot_api_url)/health"
+# 启动交互式调试工具
+./scripts/debug_lambda.sh
 
-# 发送用户查询
-curl -X POST "$(terraform output -raw chatbot_api_url)" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "我的订单12345什么时候到？"}'
+# 选择选项9进行完整诊断，包括：
+# ✅ Layer兼容性检查
+# ✅ 导入错误检测  
+# ✅ 错误日志分析
+# ✅ Bedrock权限验证
+# ✅ Terraform状态同步
 ```
 
-预期输出：
-```json
-{
-  "response": "您的订单12345目前状态是已发货，预计会在3-5个工作日内送达。如有其他问题，请随时咨询。",
-  "query": "我的订单12345什么时候到？",
-  "extracted_order_id": "12345"
-}
+### 常见问题速查
+
+#### 🚨 Layer兼容性问题
+**错误**: `No module named 'pydantic_core'` 或 `_pydantic_core`
+```bash
+# 解决方案：重新构建Layer（使用正确的平台）
+./scripts/prepare_py311_layer.sh
+
+# 或使用调试工具自动修复
+./scripts/debug_lambda.sh  # 选择选项6
 ```
 
-## 故障排除
+#### 🚨 Bedrock权限问题
+**错误**: `AccessDeniedException: You don't have access to the model`
+```bash
+# 1. 检查模型权限
+./scripts/debug_lambda.sh  # 选择选项7
 
-如果遇到部署或功能问题，请检查：
+# 2. 手动申请权限
+# 访问AWS Bedrock控制台 -> 模型访问权限 -> 申请Amazon Titan
+```
 
-1. **Lambda依赖问题**：
-   - 检查 CloudWatch 日志是否显示缺少依赖项
-   - 确认 Lambda Layer 已正确配置和部署
-   - 使用部署脚本重新部署以解决依赖问题
+#### 🚨 Shell配置冲突
+**错误**: `head: |: No such file or directory`
+```bash
+# 解决方案：所有脚本已自动设置
+export AWS_PAGER=""
+```
 
-2. **API Gateway配置**：
-   - 检查 API Gateway 阶段是否正确部署
-   - 确认 Lambda 权限是否允许 API Gateway 调用
+#### 🚨 Unicode编码问题
+**现象**: 返回 `\u5f88\u62b1\u6b49` 而不是中文
+```bash
+# 已在代码中修复：json.dumps(body, ensure_ascii=False, indent=2)
+# 如仍有问题，检查 Content-Type: application/json; charset=utf-8
+```
 
-3. **Bedrock访问权限**：
-   - 确认 MCP 客户端 Lambda 有合适的 Bedrock 调用权限
-   - 检查是否使用了正确的模型 ID
+### 日志查看
 
-### API Gateway 错误: "Internal server error"
+```bash
+# 实时查看日志
+aws logs tail /aws/lambda/mcp-client --follow
 
-如果通过 API Gateway 访问 Lambda 函数时收到 "Internal server error" 错误，可以尝试以下解决方法：
+# 查看错误日志
+./scripts/debug_lambda.sh  # 选择选项3
 
-1. **直接调用 Lambda 函数进行测试**：
-   ```bash
-   # 创建测试事件文件
-   echo '{"httpMethod":"GET","path":"/health"}' > test_event.json
-   
-   # 使用 Lambda 函数的 CLI 调用
-   aws lambda invoke --function-name mcp-order-status-server \
-     --cli-binary-format raw-in-base64-out \
-     --payload file://test_event.json response.json
-   
-   # 查看响应
-   cat response.json
-   ```
+# 手动查看最近日志
+aws logs get-log-events \
+  --log-group-name "/aws/lambda/mcp-client" \
+  --log-stream-name $(aws logs describe-log-streams \
+    --log-group-name "/aws/lambda/mcp-client" \
+    --order-by LastEventTime --descending --limit 1 \
+    --query 'logStreams[0].logStreamName' --output text)
+```
 
-2. **检查日志**：
-   ```bash
-   # 获取最新的日志
-   aws logs get-log-events \
-     --log-group-name /aws/lambda/mcp-order-status-server \
-     --log-stream-name $(aws logs describe-log-streams \
-       --log-group-name /aws/lambda/mcp-order-status-server \
-       --order-by LastEventTime --descending --limit 1 \
-       --query 'logStreams[0].logStreamName' --output text)
-   ```
+## 🛠️ 开发和维护
 
-### Lambda Layer依赖问题
+### 日常开发工作流
 
-如果遇到依赖问题，特别是与pydantic相关的错误，请尝试以下解决方法：
+```bash
+# 1. 修改依赖或代码后，重新构建Layer
+./scripts/prepare_py311_layer.sh
 
-1. **使用项目提供的脚本重新创建Layer**：
-   ```bash
-   # 运行依赖准备脚本
-   ./scripts/prepare_layer_dependencies.sh
-   
-   # 在AWS控制台上传新的layer.zip并创建新版本
-   ```
+# 2. 更新基础设施（如有配置变更）
+cd infrastructure/terraform && terraform apply
 
-2. **确认Layer包含所有必要依赖**：
-   脚本自动安装的核心依赖包括：
-   ```
-   boto3>=1.28.0
-   requests>=2.31.0
-   pytest>=7.4.0
-   pydantic>=2.4.2,<2.5.0
-   ```
+# 3. 验证所有功能
+./scripts/test_all_apis.sh
 
-3. **检查CloudWatch日志**：
-   查看Lambda执行日志，确认具体的依赖错误信息
-   ```bash
-   # 使用AWS CLI查看最新日志
-   aws logs get-log-events \
-     --log-group-name /aws/lambda/mcp-client \
-     --log-stream-name $(aws logs describe-log-streams \
-       --log-group-name /aws/lambda/mcp-client \
-       --order-by LastEventTime --descending --limit 1 \
-       --query 'logStreams[0].logStreamName' --output text)
-   ```
+# 4. 如有问题，使用调试工具
+./scripts/debug_lambda.sh
+```
 
-4. **更新Layer ARN**：
-   - 在AWS控制台创建新版本的Layer后
-   - 修改terraform.tfvars文件中的lambda_layer_arn值
-   - 重新应用Terraform配置
-   ```bash
-   cd infrastructure/terraform
-   terraform apply
-   ```
+### Layer版本管理
 
-## 开发指南
+```bash
+# 查看当前Layer版本
+aws lambda list-layer-versions --layer-name mcp-dependencies
 
-- 修改订单模拟数据：编辑 `src/lambda/order_mock_api/order_mock_api.py`
-- 添加新的MCP工具：编辑 `src/lambda/mcp_server/mcp_server.py`
-- 调整LLM提示模板：编辑 `src/lambda/mcp_client/mcp_client.py`
-- 更改 Bedrock 模型：通过环境变量 `MODEL_ID` 配置
+# 检查函数使用的Layer版本
+./scripts/debug_lambda.sh  # 选择选项4
+
+# 更新到最新Layer版本
+./scripts/debug_lambda.sh  # 选择选项6
+```
+
+### 性能优化建议
+
+- **超时设置**：MCP相关函数建议30秒以上
+- **内存配置**：客户端函数建议1024MB
+- **并发控制**：根据需要配置预留并发
+- **监控告警**：设置CloudWatch告警监控错误率和延迟
+
+## 📚 文档和资源
+
+### 项目文档
+- **📄 [调试指南](AI_MCP_Debugging_Guide.md)** - 详细的调试实战经验
+- **📄 [脚本说明](scripts/README.md)** - 自动化脚本使用指南
+
+### 技术参考
+- [MCP Specification v2025.03.26](https://modelcontextprotocol.io/specification/2025-03-26/)
+- [AWS Lambda with MCP](https://github.com/awslabs/run-model-context-protocol-servers-with-aws-lambda)
+- [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+
+### API端点引用
+
+部署完成后，您将获得以下端点：
+
+| API | 端点 | 功能 |
+|-----|------|------|
+| **Chatbot API** | `https://{api-id}.execute-api.us-east-1.amazonaws.com/dev/chat` | AI智能对话 |
+| **MCP Server** | `https://{api-id}.execute-api.us-east-1.amazonaws.com/dev/mcp` | MCP工具调用 |
+| **Mock API** | `https://{api-id}.execute-api.us-east-1.amazonaws.com/dev/orders/{id}` | 订单查询 |
+
+## 🤝 贡献和支持
+
+### 贡献指南
+1. Fork项目并创建特性分支
+2. 遵循现有的代码风格和错误处理模式
+3. 添加相应的测试用例
+4. 更新相关文档
+5. 提交Pull Request
+
+### 获取支持
+- **问题反馈**：使用GitHub Issues
+- **调试帮助**：参考调试指南和使用调试工具
+- **最佳实践**：查看scripts/README.md
+
+---
+
+*🚀 基于AWS和MCP v2025.03.26的智能客服系统 - 完整的部署、测试、调试工具链*
+

@@ -96,7 +96,7 @@ module "mcp_client" {
     ENVIRONMENT = var.environment
     MCP_SERVER_URL = "${module.mcp_server_api_gateway.invoke_url}"
     MCP_SERVER_FUNCTION = "mcp-order-status-server"
-    MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+    MODEL_ID = "amazon.titan-text-express-v1"
     # 添加Context相关环境变量
     CONTEXT_ENABLED = "true"
   }
@@ -133,15 +133,21 @@ resource "aws_iam_policy" "bedrock_invoke_policy" {
           "bedrock:InvokeModelWithResponseStream"
         ],
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}:*:foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
-          "arn:aws:bedrock:${var.aws_region}:*:foundation-model/anthropic.claude-v2",
-          "arn:aws:bedrock:${var.aws_region}:*:foundation-model/*"
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-text-express-v1",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-v2",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-text-express-v1",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/*"
         ]
       },
       {
         Effect = "Allow",
         Action = [
-          "bedrock:*"
+          "bedrock:ListFoundationModels",
+          "bedrock:GetFoundationModel",
+          "bedrock:DescribeModelInvocation"
         ],
         Resource = "*"
       }

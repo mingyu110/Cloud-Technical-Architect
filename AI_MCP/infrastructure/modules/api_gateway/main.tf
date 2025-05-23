@@ -181,7 +181,7 @@ resource "aws_api_gateway_method_settings" "all" {
 
 # 允许API Gateway调用Lambda - 更明确的权限定义
 resource "aws_lambda_permission" "api_gateway" {
-  statement_id  = "AllowAPIGatewayInvoke"
+  statement_id  = "AllowAPIGatewayInvoke_${var.name}"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "apigateway.amazonaws.com"

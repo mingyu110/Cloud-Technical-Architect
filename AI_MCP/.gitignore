@@ -57,4 +57,22 @@ terraform.tfstate.backup
 credentials
 
 # Layer zip
-layer.zip 
+layer.zip
+
+# 构建产物和临时文件
+layer_build/
+py311_layer*.zip
+*_temp.zip
+
+# 测试文件
+test_*.py
+test-*.json
+output*.json
+
+# 调试相关文件
+requirements_fix.txt
+*_debugging_*
+
+# CodeRabbit 配置文件
+.coderabbit.yml
+.coderabbit.yaml 
