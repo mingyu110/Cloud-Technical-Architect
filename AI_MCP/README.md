@@ -46,7 +46,7 @@ Anthropic于2025年3月发布了Model Context Protocol (MCP) v2025.03.26，引�
 
 ### 系统架构图
 
-![AI MCP 系统架构图](aws_cloud_mcp_architecture.png)
+![AI MCP 系统架构图](aws_cloud_mcp_architecture.png?v=2)
 
 #### 架构概述
 
