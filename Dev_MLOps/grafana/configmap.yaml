@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-config
+  labels:
+    grafana_dashboard: "1"
+data:
+  mlflow.json: |
+    {{ .Files.Get "dashboards/mlflow.json" | indent 4 }}
+  kserve.json: |
+    {{ .Files.Get "dashboards/kserve.json" | indent 4 }}
+  system-metrics.json: |
+    {{ .Files.Get "dashboards/system-metrics.json" | indent 4 }}

@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-ingestion
+spec:
+  template:
+    spec:
+      containers:
+        - name: ingest
+          image: <your_ecr_repo>/data-ingestion:latest
+          envFrom:
+            - secretRef:
+                name: aws-secrets
+      restartPolicy: Never

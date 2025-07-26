@@ -1,0 +1,18 @@
+{
+  "id": null,
+  "title": "MLflow Tracking Overview",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Active Experiments",
+      "targets": [
+        {
+          "expr": "mlflow_active_experiments",
+          "format": "time_series"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 26,
+  "version": 1
+}

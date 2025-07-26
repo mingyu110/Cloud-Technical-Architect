@@ -1,0 +1,15 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: xgboost-model
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: xgboost
+      storageUri: s3://my_bucket/models/xgboost-latest/
+      runtime: kserve-xgboostserver
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi

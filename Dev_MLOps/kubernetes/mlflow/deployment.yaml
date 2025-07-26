@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: mlflow:latest  # Or your ECR image
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: mlflow-secrets
+          volumeMounts:
+            - name: mlflow-pv
+              mountPath: /mlflow
+      volumes:
+        - name: mlflow-pv
+          persistentVolumeClaim:
+            claimName: mlflow-pvc
