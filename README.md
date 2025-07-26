@@ -29,4 +29,5 @@
 4.  **发起Pull Request**: 将你的分支推送到GitHub，并向本仓库的`main`分支发起一个Pull Request。
 
 请确保你的代码遵循仓库中已有的风格，并为任何新项目或重要功能添加清晰的`README.md`文件。
+| [Dev_MLOps](./Dev_MLOps) | End-to-end MLOps project using Terraform, AWS EKS, Kubeflow, and MLflow. | [Link](./Dev_MLOps) |
 \n## Dev_MLOps\n\nThis project is a sub-project of the Cloud-Technical-Architect repository. You can find the project files in the [Dev_MLOps](./Dev_MLOps) directory.
