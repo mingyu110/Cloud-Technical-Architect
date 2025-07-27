@@ -17,6 +17,7 @@
 | [`MLOps_CICD/`](./MLOps_CICD/) | 一个MLOps项目，演示了如何使用Terraform构建和管理从训练到部署的完整机器学习生命周期。 | `Python`, `Terraform`, `MLOps`, `AWS` |
 | [`vehicle-monitoring/`](./vehicle-monitoring/) | 一个基于流式架构的实时车辆监控系统，通过AWS Kinesis和Lambda进行数据采集与处理。 | `Python`, `AWS Kinesis`, `AWS Lambda`, `Serverless` |
 | [`Dev_MLOps/`](./Dev_MLOps/) | 基于Terraform、AWS EKS、Kubeflow和MLflow的端到端MLOps项目。 | `Python`, `Terraform`, `AWS EKS`, `MLOps` |
+| [`Serverless_MCP_on_AWS/`](./Serverless_MCP_on_AWS_技术文档.md) | 在AWS上构建无服务器的MCP Server的技术方案选型分析。 | `AWS`, `Serverless`, `MCP` |
 
 ---
 
