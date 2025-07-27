@@ -14,4 +14,4 @@
 
 ### 2. 详细介绍
 
-可以参考本项目<u>/docs</u>目录下的[MLflow 和 KServe 在 Kubernetes 上的全流程 MLOps 部署（基于 Terraform 和 AWS EKS）](./docs/MLflow 和 KServe 在 Kubernetes 上的全流程 MLOps 部署（基于 Terraform 和 AWS EKS）)
+可以参考本项目<u>/docs</u>目录下的[MLflow 和 KServe 在 Kubernetes 上的全流程 MLOps 部署（基于 Terraform 和 AWS EKS）](./docs/MLflow%20和%20KServe%20在%20Kubernetes%20上的全流程%20MLOps%20部署（基于%20Terraform%20和%20AWS%20EKS）.md)
