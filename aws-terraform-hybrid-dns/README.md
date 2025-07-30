@@ -19,6 +19,14 @@ The us-east-2 region will be hosting the micros4l-onprem VPC with a prefix of 19
 The us-east-1 region will be hosting the micros4l-aws VPC with a prefix of 10.10.0.0/16 containing 2 private subnets - note the non-overlapping private IP space between the environments as this is a requirement for VPC peering in addition to DirectConnect (DX) connectivity which is being simulated. Two basic t2.micro EC2 instances, micros4l-awsec2b/b will be deployed here for testing DNS resolution into our simulated Corporate on-prem datacenter. Each instance is deployed in a separate subnet/availability zone. The Route 53 private hosted zone for aws.microgreens4life.org with an A record of web.aws.microgreens4life.org is configured here. Additionally, Route 53 Inbound and Outbound endpoints are hosted here where each endpoint gets associated with both of the us-east-1 private subnets. The Outbound endpoint will have a forwarding rule for the corp.microgreens4life.org zone associated with it which targets the micros4l-onpremdnsa/b Bind servers hosted "on-prem" (us-east-2) to resolve outbound requests to the Corporate subdomains.
 
 All instances will be deployed with settings configured to allow Systems Manager connectivity as this is the only way to connect to these private instances in this environment as none of them will be deployed with a public IP address nor is there any internet gateway created - these are completely isolated, private environments.
+
+### Application Scenarios
+This hybrid DNS architecture is a foundational pattern for قوة several critical enterprise use cases:
+
+-   **Enterprise Data Center Extension**: For companies extending their on-premises data centers to AWS for more compute or storage capacity, while needing seamless DNS resolution for internal applications across both environments.
+-   **Hybrid Cloud Disaster Recovery (DR)**: When setting up a DR site in AWS, hybrid DNS is critical for redirecting traffic to the AWS environment during a failover event without changing application endpoints.
+-   **Phased Cloud Migration**: During a long-term migration, applications and services will coexist in both on-premises and AWS locations. This architecture allows legacy on-prem systems to resolve new cloud-native services, and vice-versa.
+-   **Secure Access to Private Cloud Services**: Enables organizations to resolve internal, private services hosted in AWS (e.g., internal dashboards, databases) from their corporate network without exposing them to the public internet.
 ### Procedure
 1. Navigate to the `/global/iam` directory and run terraform plan/apply:
 ```
