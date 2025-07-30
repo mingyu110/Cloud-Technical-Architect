@@ -19,6 +19,7 @@
 | [`Dev_MLOps/`](./Dev_MLOps/) | 基于Terraform、AWS EKS、Kubeflow和MLflow的端到端MLOps项目。 | `Python`, `Terraform`, `AWS EKS`, `MLOps` |
 | [`Serverless_MCP_on_AWS/`](./Serverless_MCP_on_AWS_技术文档.md) | 在AWS上构建无服务器的MCP Server的技术方案选型分析。 | `AWS`, `Serverless`, `MCP` |
 | [`bedrock_agent_deployment_project/`](./bedrock_agent_deployment_project/) | 一个完整的、可直接部署的示例，旨在演示如何将一个基于 Python 和 LangGraph 的 AI 代理，通过容器化技术部署到 **AWS Bedrock AgentCore**。 | `Python`, `AWS Bedrock`, `Docker`, `LangGraph` |
+| [`aws-terraform-hybrid-dns/`](./aws-terraform-hybrid-dns/) | 一个通过Terraform实现的AWS混合云DNS解决方案，用于模拟本地数据中心与AWS之间的私有DNS解析。 | `Terraform`, `AWS`, `Route53`, `VPC Peering`, `DNS` |
 
 ---
 
