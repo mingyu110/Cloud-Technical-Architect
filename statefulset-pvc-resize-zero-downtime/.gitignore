@@ -1,0 +1,4 @@
+# Ignore local files and directories
+*.local
+*.log
+.DS_Store
