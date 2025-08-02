@@ -8,6 +8,8 @@
 
 Kubernetes 从 v1.11 版本开始，允许对 PVC 进行在线扩容，前提是后端的 `StorageClass` 支持此项特性。对于 StatefulSet，由于其 Pod 和 PVC 的生命周期是绑定的，我们需要采用特定的策略来确保扩容过程不会导致服务中断。
 
+![PV, PVC, and StorageClass Relationship](./images/pv_pvc_sc.png)
+
 关键点在于：
 
 1.  **`StorageClass` 配置**：必须将 `allowVolumeExpansion` 设置为 `true`。

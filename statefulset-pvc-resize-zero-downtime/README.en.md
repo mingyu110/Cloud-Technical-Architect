@@ -8,6 +8,8 @@ This project demonstrates how to safely and smoothly resize PersistentVolumeClai
 
 Since v1.11, Kubernetes allows online resizing of PVCs, provided that the backing `StorageClass` supports this feature. For StatefulSets, where Pods and PVCs have a tightly coupled lifecycle, we need to adopt a specific strategy to ensure the resizing process does not cause service interruption.
 
+![PV, PVC, and StorageClass Relationship](./images/pv_pvc_sc.png)
+
 The key points are:
 
 1.  **`StorageClass` Configuration**: The `allowVolumeExpansion` field must be set to `true`.
