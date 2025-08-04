@@ -22,6 +22,7 @@
 | [`aws-terraform-hybrid-dns/`](./aws-terraform-hybrid-dns/) | 一个通过Terraform实现的AWS混合云DNS解决方案，用于模拟本地数据中心与AWS之间的私有DNS解析。 | `Terraform`, `AWS`, `Route53`, `VPC Peering`, `DNS` |
 | [`statefulset-pvc-resize-zero-downtime/`](./statefulset-pvc-resize-zero-downtime/) | 演示了如何在零停机的情况下，安全、平滑地对 Kubernetes StatefulSet 的持久化存储卷（PVC）进行扩容。 | `Kubernetes`, `StatefulSet`, `PVC`, `Zero-Downtime` |
 | [`mlflow-sagemaker-model-build/`](./mlflow-sagemaker-model-build/) | 一个完整的、生产级的MLOps解决方案，演示了如何利用AWS SageMaker Pipelines和MLflow，构建一个自动化、可复现的模型构建与训练CI/CD管道。 | `Python`, `AWS SageMaker`, `MLflow`, `CI/CD`, `MLOps` |
+| [`kubernetes/alibaba-cloud/`](./kubernetes/alibaba-cloud/aliyun-ack-advanced-network-security-practice.md) | 阿里云 ACK 中基于 Terway CNI 和 Karpenter 的高级网络安全实践 | `Kubernetes`, `阿里云 ACK`, `Terway CNI`, `Karpenter`, `网络安全`, `弹性伸缩` |
 
 ---
 
