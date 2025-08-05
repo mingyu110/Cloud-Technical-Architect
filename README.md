@@ -24,6 +24,7 @@
 | [`mlflow-sagemaker-model-build/`](./mlflow-sagemaker-model-build/) | 一个完整的、生产级的MLOps解决方案，演示了如何利用AWS SageMaker Pipelines和MLflow，构建一个自动化、可复现的模型构建与训练CI/CD管道。 | `Python`, `AWS SageMaker`, `MLflow`, `CI/CD`, `MLOps` |
 | [`kubernetes/alibaba-cloud/`](./kubernetes/alibaba-cloud/aliyun-ack-advanced-network-security-practice.md) | 阿里云 ACK 中基于 Terway CNI 和 Karpenter 的高级网络安全实践 | `Kubernetes`, `阿里云 ACK`, `Terway CNI`, `Karpenter`, `网络安全`, `弹性伸缩` |
 | [`异构云环境中间件选型与治理规范.md`](./异构云环境中间件选型与治理规范.md) | 在复杂的异构云（例如，AWS、阿里云、私有云）背景下，如何系统性地进行中间件的选型、部署、治理和优化的方法论和实践指南。 | `Middleware`, `Hybrid Cloud`, `Governance`, `Architecture` |
+| [`数据库性能压测与优化实践指导方法.md`](./数据库性能压测与优化实践指导方法.md) | 一套系统化的数据库性能压测与优化方法论，涵盖了从基准测试、瓶颈分析到索引优化、SQL调优和架构调整的全流程实践指南。 | `Database`, `Performance Tuning`, `Benchmarking`, `SQL Optimization` |
 
 ---
 
