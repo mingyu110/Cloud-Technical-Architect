@@ -26,6 +26,7 @@
 | [`异构云环境中间件选型与治理规范.md`](./异构云环境中间件选型与治理规范.md) | 在复杂的异构云（例如，AWS、阿里云、私有云）背景下，如何系统性地进行中间件的选型、部署、治理和优化的方法论和实践指南。 | `Middleware`, `Hybrid Cloud`, `Governance`, `Architecture` |
 | [`数据库性能压测与优化实践指导方法.md`](./数据库性能压测与优化实践指导方法.md) | 一套系统化的数据库性能压测与优化方法论，涵盖了从基准测试、瓶颈分析到索引优化、SQL调优和架构调整的全流程实践指南。 | `Database`, `Performance Tuning`, `Benchmarking`, `SQL Optimization` |
 | [`事务的选择.md`](./事务的选择.md) | 深入探讨了在不同业务场景下如何选择最合适的事务处理模型，涵盖了从本地事务、分布式事务（2PC、TCC、Saga）到最终一致性的设计原则和实践。 | `Transaction`, `Distributed Systems`, `ACID`, `BASE`, `Saga` |
+| [`automated-patch-management-and-security-compliance-on-public-cloud.md`](./automated-patch-management-and-security-compliance-on-public-cloud.md) | 一套关于如何在公共云（如AWS、GCP）上构建自动化补丁管理与安全合规体系的系统性实践方案。 | `Public Cloud`, `Security`, `Compliance`, `Automation`, `Patch Management` |
 
 ---
 
