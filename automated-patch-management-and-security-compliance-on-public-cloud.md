@@ -22,7 +22,7 @@
 
 ##### **2.1 核心组件与架构图**
 
-![SSM_and_Terraform](/Users/jinxunliu/Desktop/SSM_and_Terraform.png)
+![SSM_and_Terraform](./SSM_and_Terraform.png)
 
 ###### **架构协同工作方式解析**
 
