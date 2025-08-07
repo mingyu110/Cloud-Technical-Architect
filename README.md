@@ -29,6 +29,7 @@
 | [`automated-patch-management-and-security-compliance-on-public-cloud.md`](./automated-patch-management-and-security-compliance-on-public-cloud.md) | 一套关于如何在公共云（如AWS、GCP）上构建自动化补丁管理与安全合规体系的系统性实践方案。 | `Public Cloud`, `Security`, `Compliance`, `Automation`, `Patch Management` |
 | [`articles/architecture/High_Availability_and_Concurrency_System_Design_Guide.md`](./articles/architecture/High_Availability_and_Concurrency_System_Design_Guide.md) | 一份关于如何设计和构建高可用、高并发系统的全面指南，涵盖了从技术原则、运维保障到文化建设的全流程。 | `High Availability`, `High Concurrency`, `System Design`, `Architecture`, `SRE` |
 | [`articles/architecture/Distributed_Transaction_Design_Guide.md`](./articles/architecture/Distributed_Transaction_Design_Guide.md) | 一份关于分布式事务设计的权威指南，涵盖从CAP/BASE理论到2PC、TCC、Saga及事务消息的深度实践。 | `Distributed Systems`, `Transaction`, `Saga`, `TCC`, `Transactional Message` |
+| [`最佳实践/将S3 Bucket挂载到EC2实例的最佳实践.md`](./最佳实践/将S3%20Bucket挂载到EC2实例的最佳实践.md) | 在EC2实例上通过fstab持久化挂载S3存储桶的最佳实践，涵盖了适用场景、新特性和问题排查。 | `AWS`, `S3`, `EC2`, `Mountpoint`, `fstab` |
 
 ---
 
