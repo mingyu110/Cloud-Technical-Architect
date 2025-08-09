@@ -16,7 +16,7 @@
 
 解决方案架构图如下：
 
-<img src="/Users/jinxunliu/Documents/medium/Token_Leak_Detection.drawio.png" alt="Token_Leak_Detection.drawio" style="zoom:90%;" />
+![Token_Leak_Detection.drawio](./Token_Leak_Detection.drawio.png)
 
 本解决方案主要依赖以下几个核心AWS服务：
 
