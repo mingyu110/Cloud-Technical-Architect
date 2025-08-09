@@ -265,7 +265,7 @@ Lambda函数需要权限来访问DynamoDB和SNS。
 *   **误报处理**：在某些情况下，合法的IP地址也可能发生变化（例如，EC2实例重启后获得新的公网IP）。因此，警报应被视为高可信度的**信号**，需要安全团队进行简要的二次确认，而非直接执行封禁等破坏性操作。
 *   **成本控制**：本方案完全基于无服务器架构，成本极低。主要成本来自CloudTrail事件记录、Lambda调用和DynamoDB读写。通过为DynamoDB表设置TTL，可以确保状态数据不会无限增长，从而将存储成本降至最低。
 *   **性能与扩展性**：该架构具有极高的扩展性。Lambda、DynamoDB和SNS都可以根据负载自动扩展，能够轻松应对大规模云环境中的海量API调用。
-*   **增强的响应措施**：在收到SNS警报后，可以进一步自动化响应流程。例如，可以触发另一个Lambda函数，该函数使用 `sts:DecodeAuthorizationMessage` 解析事件详情，并尝试通过调用 `iam:RevokeRoleSession` 来立即撤销被盗用的会ッション。
+*   **增强的响应措施**：在收到SNS警报后，可以进一步自动化响应流程。例如，可以触发另一个Lambda函数，该函数使用 `sts:DecodeAuthorizationMessage` 解析事件详情，并尝试通过调用 `iam:RevokeRoleSession` 来立即撤销被盗用的会话。
 *   **方案原理：为何通过AccessKeyId能检测泄露？**：AWS的临时凭证并非单一的Token，而是一个包含三部分的凭证集：`AccessKeyId`（公有标识符）、`SecretAccessKey`（私有签名密钥）和`SessionToken`（临时性证明）。CloudTrail作为审计服务，会记录用于识别身份的公有`AccessKeyId`，但出于安全考虑，绝不会记录私有的`SecretAccessKey`和`SessionToken`。本方案正是利用这一点，通过追踪公开的`AccessKeyId`在不同IP地址的使用情况，来推断整个凭证集是否已被盗用，从而实现对泄露事件的有效监控。
 
 ### 6. 总结
