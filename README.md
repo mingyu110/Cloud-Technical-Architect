@@ -31,6 +31,7 @@
 | [`articles/architecture/Distributed_Transaction_Design_Guide.md`](./articles/architecture/Distributed_Transaction_Design_Guide.md) | 一份关于分布式事务设计的权威指南，涵盖从CAP/BASE理论到2PC、TCC、Saga及事务消息的深度实践。 | `Distributed Systems`, `Transaction`, `Saga`, `TCC`, `Transactional Message` |
 | [`最佳实践/将S3 Bucket挂载到EC2实例的最佳实践.md`](./最佳实践/将S3%20Bucket挂载到EC2实例的最佳实践.md) | 在EC2实例上通过fstab持久化挂载S3存储桶的最佳实践，涵盖了适用场景、新特性和问题排查。 | `AWS`, `S3`, `EC2`, `Mountpoint`, `fstab` |
 | [`最佳实践/云原生架构中CORS跨域请求的成本优化策略.md`](./最佳实践/云原生架构中CORS跨域请求的成本优化策略.md) | 深入分析了在云原生架构中由CORS预检请求带来的额外成本问题，并提供了基于CDN边缘计算的优化方案与实践。 | `CORS`, `Cost Optimization`, `CloudFront`, `API Gateway`, `Serverless` |
+| [`best-practices/基于CloudTrail的AWS临时凭证泄露检测方案.md`](./best-practices/基于CloudTrail的AWS临时凭证泄露检测方案.md) | 一套基于AWS CloudTrail和EventBridge的自动化凭证泄露检测与响应方案，用于实时监控、告警和阻断潜在的安全风险。 | `AWS`, `Security`, `CloudTrail`, `EventBridge`, `Automation` |
 
 ---
 
