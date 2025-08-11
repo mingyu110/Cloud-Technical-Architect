@@ -34,6 +34,7 @@
 | [`best-practices/基于CloudTrail的AWS临时凭证泄露检测方案.md`](./best-practices/基于CloudTrail的AWS临时凭证泄露检测方案.md) | 一套基于AWS CloudTrail和EventBridge的自动化凭证泄露检测与响应方案，用于实时监控、告警和阻断潜在的安全风险。 | `AWS`, `Security`, `CloudTrail`, `EventBridge`, `Automation` |
 | [`best-practices/构建无边界的混合云原生网络架构的技术方案.md`](./best-practices/hybrid_cloud_native_infrastructure_comparison.md) | 深入探讨了在混合云环境下，如何利用EKS Hybrid模式构建统一的K8s集群网络，并对主流云厂商方案进行了对比分析。 | `Hybrid Cloud`, `Kubernetes`, `AWS EKS`, `Networking`, `BGP` |
 | [`最佳实践/容器化应用性能优化与实践.md`](./最佳实践/容器化应用性能优化与实践.md) | 一份系统性的容器性能优化指南，覆盖从应用代码、容器镜像、K8s编排到节点内核的全流程优化实践。 | `Kubernetes`, `Docker`, `Performance`, `SRE` |
+| [DynamoDB Versioning Deep Dive](./best-practices/dynamodb_versioning_deep_dive.md) | 深入探讨DynamoDB的版本控制机制，包括乐观锁、条件更新和事务等。 | `AWS DynamoDB`, `Versioning`, `Optimistic Locking` |
 
 ---
 
