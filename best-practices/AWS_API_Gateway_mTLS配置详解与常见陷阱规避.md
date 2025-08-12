@@ -10,6 +10,7 @@
 ## 2. 核心架构与认证流程
 
 在 AWS API Gateway 中，mTLS 的实现依赖于一个清晰的架构和认证流程。
+![API Gateway mTLS](./API_Gateway_mTLS.png)
 
 ### 2.1. 核心架构组件
 
