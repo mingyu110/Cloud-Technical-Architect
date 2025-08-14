@@ -59,7 +59,7 @@
 
 该项目的 Terraform 代码结构简洁明了，体现了基础设施即代码（IaC）的优势，确保了部署的可重复性和环境的一致性。
 
-项目代码的GitHub地址：
+项目代码的GitHub地址：[aws-incident-response-bot-repo](https://github.com/mingyu110/Cloud-Technical-Architect/tree/main/aws-incident-response-bot-repo)
 
 ### 3.1 项目结构与模块化考量
 
