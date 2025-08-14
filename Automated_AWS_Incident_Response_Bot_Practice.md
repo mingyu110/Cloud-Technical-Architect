@@ -19,7 +19,7 @@
 
 ### 2.2 架构概览
 
-![Incident_Response_Agent.drawio](/Users/jinxunliu/Documents/medium/Incident_Response_Agent.drawio.png)
+![Incident_Response_Agent.drawio](./Incident_Response_Agent.drawio.png)
 
 该自动化事件响应机器人的工作流程如下：
 
