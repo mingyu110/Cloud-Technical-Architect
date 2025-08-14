@@ -9,7 +9,6 @@
 ---
 
 ## 2. 项目列表
-* [深度解析与实践：从服务发现到高级部署的演进——以 Amazon ECS Service Connect 为例](ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md)
 
 | 项目 (目录) | 核心功能与说明 | 主要技术栈 |
 | :--- | :--- | :--- |
