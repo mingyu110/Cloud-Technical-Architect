@@ -1,8 +1,8 @@
 ### 技术实践白皮书：云上CAE/CFD工作负载的数据架构现代化
 
-**前言**
+**作者前言**
 
-在阿里云工作期间，我有幸参与了一些客户的CAE/CFD业务的核心研发流程向云端的现代化转型项目。在此过程中，我们发现，无论客户的业务背景如何，当CAE/CFD这类典型的高性能计算（HPC）工作负载上云时，他们都会面临一个共同的核心挑战：**如何平衡海量仿真数据对“高性能”和“低成本”这两种看似矛盾的存储需求？**
+在阿里云工作期间，我有幸与多家国内顶尖的航空航天及汽车制造企业深度合作，主导并参与了他们核心研发流程向云端的现代化转型项目。在此过程中，我们发现，无论客户的业务背景如何，当CAE/CFD这类典型的高性能计算（HPC）工作负载上云时，他们都会面临一个共同的核心挑战：**如何平衡海量仿真数据对“高性能”和“低成本”这两种看似矛盾的存储需求？**
 
 本文旨在分享我们当时为客户设计并成功落地的一套**“分离式数据架构”**。该架构不仅解决了上述核心挑战，更已成为当前云上HPC数据管理的最佳实践。同时，本文也将对业界两大领先的云服务商——**阿里云**与**Amazon Web Services (AWS)**——在此架构下的核心技术实现进行对等的分析与比较。
 
@@ -92,3 +92,101 @@
 *   **建立起可复用、可追溯的中央数据资产**，为未来的AI/ML数据分析和数字孪生应用奠定了坚实的基础。
 
 可以预见，这种云原生的分离式数据架构将成为未来所有数据密集型科学与工程计算领域的标准范式。
+
+---
+
+### **附录：基础设施即代码（IaC）实践——自动化HPC环境部署**
+
+“在数分钟内启动集群”的核心是**基础设施即代码（Infrastructure as Code, IaC）**的理念。即通过编写可读的配置文件来定义和管理所有云资源，从而实现部署的自动化、可重复性和版本控制。以下是两大云平台IaC实践的简要示例。
+
+#### **AWS 实践: AWS ParallelCluster**
+
+AWS ParallelCluster 使用YAML文件来定义整个HPC集群的拓扑。
+
+**`cluster-config.yaml` 示例片段:**
+```yaml
+# ... 其他配置 ...
+SharedStorage:
+  - Name: FsxLustreStorage
+    StorageType: FsxLustre
+    MountDir: /fsx
+    FsxLustreSettings:
+      # 关联到S3数据湖
+      DataRepositoryPath: s3://my-cae-datalake/project-A/
+
+Scheduling:
+  Scheduler: slurm
+  SlurmQueues:
+    - Name: cfd-queue
+      ComputeResources:
+        - Name: hpc-compute-nodes
+          InstanceType: hpc7g.8xlarge
+          MinCount: 0  # 核心：空闲时节点数为0
+          MaxCount: 128 # 核心：按需最大扩展数
+# ... 其他配置 ...
+```
+
+**部署与销毁命令:**
+```bash
+# 创建集群 (约15-25分钟)
+pcluster create-cluster --cluster-name my-cfd-cluster --cluster-configuration cluster-config.yaml
+
+# 销毁集群 (用完即毁)
+pcluster delete-cluster --cluster-name my-cfd-cluster
+```
+
+#### **阿里云实践: 弹性高性能计算 (EHPC) 与 Terraform**
+
+阿里云EHPC同样可以通过IaC工具进行管理，Terraform是业界通用的选择。
+
+**`main.tf` 示例片段:**
+```terraform
+# ... 其他配置，如VPC、安全组等 ...
+
+# 1. 定义OSS Bucket作为数据湖
+resource "alicloud_oss_bucket" "data_lake" {
+  bucket = "my-cae-datalake"
+}
+
+# 2. 创建CPFS文件系统
+resource "alicloud_cpfs_file_system" "hpc_cache" {
+  # ... CPFS具体配置 ...
+  protocol_type = "lustre"
+}
+
+# 3. 创建数据流动任务 (关联CPFS与OSS)
+resource "alicloud_cpfs_data_flow" "link_to_oss" {
+  file_system_id = alicloud_cpfs_file_system.hpc_cache.id
+  source_storage = "${alicloud_oss_bucket.data_lake.bucket}.oss-cn-hangzhou.aliyuncs.com"
+  # ... 其他数据流动配置 ...
+}
+
+# 4. 创建EHPC集群并挂载CPFS
+resource "alicloud_ehpc_cluster" "cfd_cluster" {
+  name            = "my-cfd-cluster"
+  compute_count   = 0 # 核心：初始节点数为0，通过弹性伸缩策略管理
+  # ... 其他集群配置 ...
+
+  # 挂载已配置好数据流动的CPFS
+  volume {
+    volume_id   = alicloud_cpfs_file_system.hpc_cache.id
+    volume_type = "CPFS"
+    remote_directory = "/"
+    local_directory = "/fsx"
+  }
+}
+```
+
+**部署与销毁命令:**
+```bash
+# 检查并初始化
+terraform init
+
+# 创建集群
+terraform apply
+
+# 销毁集群
+terraform destroy
+```
+
+通过上述IaC实践，无论使用哪家云厂商，复杂的HPC环境都转变为可代码化、版本化管理的“临时资源”，召之即来，挥之即去，完美契合了现代化研发流程对敏捷性和成本效益的极致追求。
