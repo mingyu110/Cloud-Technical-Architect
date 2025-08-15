@@ -12,8 +12,7 @@
 
 | 项目 (目录) | 核心功能与说明 | 主要技术栈 |
 | :--- | :--- | :--- |
-| [云上CAE/CFD工作负载的数据架构现代化对比实践.md](./云上CAE_CFD工作负载的数据架构现代化对比实践.md) | 一份对比AWS与阿里云在HPC数据架构方面的实践白皮书，**新增IaC部署示例**。 | `Cloud Architecture`, `HPC`, `IaC`, `AWS`, `Alibaba Cloud` || [ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md](./ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md) | 深度解析与实践：从服务发现到高级部署的演进——以 Amazon ECS Service Connect 为例 | `AWS ECS`, `Service Connect`, `Microservices`, `Blue/Green Deployment` |
-| [`AI_MCP/`](./AI_MCP/) | 基于MCP协议和AWS BedRock、AWS Lambda等在AWS云科技上构建的智能客服助手。 | `Python`, `AWS`, `Terraform`, `AI` |
+| [云上CAE/CFD工作负载的数据架构现代化对比实践.md](./云上CAE_CFD工作负载的数据架构现代化对比实践.md) | 一份完整的云上HPC数据架构白皮书，对比AWS与阿里云，包含IaC实践及**弹性集群管理策略**。 | `Cloud Architecture`, `HPC`, `IaC`, `Cluster Management`, `AWS`, `Alibaba Cloud` || [`AI_MCP/`](./AI_MCP/) | 基于MCP协议和AWS BedRock、AWS Lambda等在AWS云科技上构建的智能客服助手。 | `Python`, `AWS`, `Terraform`, `AI` |
 | [`GitHubActions_AWS_Lambda/`](./GitHubActions_AWS_Lambda/) | 一套完整的CI/CD流水线，用于通过GitHub Actions在AWS Lambda上部署无服务器应用。 | `Node.js`, `AWS Lambda`, `GitHub Actions`, `CI/CD` |
 | [`MLOps_CICD/`](./MLOps_CICD/) | 一个MLOps项目，演示了如何使用Terraform构建和管理从训练到部署的完整机器学习生命周期。 | `Python`, `Terraform`, `MLOps`, `AWS` |
 | [`vehicle-monitoring/`](./vehicle-monitoring/) | 一个基于流式架构的实时车辆监控系统，通过AWS Kinesis和Lambda进行数据采集与处理。 | `Python`, `AWS Kinesis`, `AWS Lambda`, `Serverless` |
