@@ -12,7 +12,7 @@
 
 | 项目 (目录) | 核心功能与说明 | 主要技术栈 |
 | :--- | :--- | :--- |
-| [ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md](./ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md) | 深度解析与实践：从服务发现到高级部署的演进——以 Amazon ECS Service Connect 为例 | `AWS ECS`, `Service Connect`, `Microservices`, `Blue/Green Deployment` |
+| [云上CAE/CFD工作负载的数据架构现代化对比实践.md](./云上CAE_CFD工作负载的数据架构现代化对比实践.md) | 一份对比AWS与阿里云在HPC数据架构方面核心技术的实践白皮书 | `Cloud Architecture`, `HPC`, `CAE/CFD`, `AWS`, `Alibaba Cloud` || [ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md](./ECS_Service_Connect_Deep_Dive_and_Comparison_CN.md) | 深度解析与实践：从服务发现到高级部署的演进——以 Amazon ECS Service Connect 为例 | `AWS ECS`, `Service Connect`, `Microservices`, `Blue/Green Deployment` |
 | [`AI_MCP/`](./AI_MCP/) | 基于MCP协议和AWS BedRock、AWS Lambda等在AWS云科技上构建的智能客服助手。 | `Python`, `AWS`, `Terraform`, `AI` |
 | [`GitHubActions_AWS_Lambda/`](./GitHubActions_AWS_Lambda/) | 一套完整的CI/CD流水线，用于通过GitHub Actions在AWS Lambda上部署无服务器应用。 | `Node.js`, `AWS Lambda`, `GitHub Actions`, `CI/CD` |
 | [`MLOps_CICD/`](./MLOps_CICD/) | 一个MLOps项目，演示了如何使用Terraform构建和管理从训练到部署的完整机器学习生命周期。 | `Python`, `Terraform`, `MLOps`, `AWS` |
