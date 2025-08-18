@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Build output
+target/
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# Local Env Files
+.env*
+
+# Flink state and jars
+flink-checkpoints/
+flink-savepoints/
+flink-jars/
