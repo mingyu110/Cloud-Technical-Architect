@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# 此脚本用于训练推荐系统模型。
+# 它从指定的S3路径加载训练数据，使用Grid Search寻找最佳超参数，
+# 然后用最佳参数训练SVD模型，最后将训练好的模型保存到指定路径。
+
+from __future__ import print_function
+
+import os
+import argparse
+import pandas as pd
+
+from surprise import SVD, Reader
+from surprise.dataset import DatasetAutoFolds
+from surprise.model_selection import GridSearchCV
+
+if __name__ == '__main__':
+    # --- 参数解析 ---
+    # 使用argparse来处理命令行传入的参数
+    parser = argparse.ArgumentParser()
+
+    # --- SageMaker要求的默认参数 ---
+    # 这些是SageMaker训练作业会自动传入的环境变量
+    # MODEL_DIR: 训练完成后，模型需要保存到的路径
+    parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR'))
+    # TRAIN: 训练数据的路径
+    parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
+    
+    # 解析传入的参数
+    args, _ = parser.parse_known_args()
+
+    # --- 数据加载与预处理 ---
+    # 从指定的CSV文件中加载电影评分数据
+    # SM_CHANNEL_TRAIN环境变量指向包含ratings.csv的目录
+    ratings_df = pd.read_csv(os.path.join(args.train, 'ratings.csv'))
+
+    # Surprise库要求特定的数据格式，因此我们定义一个Reader
+    # line_format指定了列的顺序：用户ID, 物品ID, 评分
+    # sep=','表示CSV文件使用逗号作为分隔符
+    # rating_scale定义了评分的范围 (1-5)
+    reader = Reader(line_format='user item rating', sep=',', rating_scale=(1, 5))
+
+    # 从Pandas DataFrame加载数据到Surprise的Dataset中
+    # 注意：我们跳过了CSV的表头 (skip_lines=1)
+    dataset = DatasetAutoFolds.load_from_df(ratings_df[['userId', 'movieId', 'rating']], reader)
+    
+    # --- 模型训练：超参数调优 ---
+    # 定义SVD算法的超参数网格，用于Grid Search
+    # 我们将对n_epochs, lr_all, reg_all这三个参数进行调优
+    param_grid = {'n_epochs': [10, 20], 'lr_all': [0.002, 0.005],
+                  'reg_all': [0.4, 0.6]}
+    
+    # 初始化GridSearchCV对象
+    # - SVD: 我们要优化的算法
+    # - param_grid: 超参数搜索空间
+    # - measures: 评估指标，这里使用RMSE（均方根误差）和MAE（平均绝对误差）
+    # - cv=3: 3折交叉验证
+    gs = GridSearchCV(SVD, param_grid, measures=['rmse', 'mae'], cv=3)
+
+    # 在数据集上运行Grid Search
+    gs.fit(dataset)
+
+    # --- 输出最佳参数 ---
+    # 打印出在验证集上达到最小RMSE的最佳参数组合
+    print('最佳RMSE分数: {}'.format(gs.best_score['rmse']))
+    print('最佳参数: {}'.format(gs.best_params['rmse']))
+
+    # --- 使用最佳参数训练最终模型 ---
+    # 从Grid Search的结果中获取最佳参数
+    params = gs.best_params['rmse']
+    # 初始化一个新的SVD模型，并设置最佳参数
+    svd = SVD(n_epochs=params['n_epochs'], lr_all=params['lr_all'],
+              reg_all=params['reg_all'])
+    
+    # 使用全部数据训练模型
+    svd.fit(dataset.build_full_trainset())
+
+    # --- 保存模型 ---
+    # 将训练好的模型保存到SageMaker指定的路径
+    # 模型文件名必须是'model.joblib'，这样才能被后续的serve脚本加载
+    from surprise.dump import dump
+    dump(os.path.join(args.model_dir, 'model.joblib'), algo=svd)
+
+    print('模型训练完成并已保存。')

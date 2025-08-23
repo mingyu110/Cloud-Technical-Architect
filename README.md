@@ -39,6 +39,7 @@
 | [`最佳实践/容器化应用性能优化与实践.md`](./最佳实践/容器化应用性能优化与实践.md) | 一份系统性的容器性能优化指南，覆盖从应用代码、容器镜像、K8s编排到节点内核的全流程优化实践。 | `Kubernetes`, `Docker`, `Performance`, `SRE` |
 | [DynamoDB Versioning Deep Dive](./best-practices/dynamodb_versioning_deep_dive.md) | 深入探讨DynamoDB的版本控制机制，包括乐观锁、条件更新和事务等。 | `AWS DynamoDB`, `Versioning`, `Optimistic Locking` |
 | [`云原生HPC平台高级成本优化策略实践.md`](./云原生HPC平台高级成本优化策略实践.md) | 一份在云原生环境下，针对高性能计算（HPC）工作负载的系统性成本优化策略与实践指南。 | `HPC`, `Cost Optimization`, `Kubernetes`, `FinOps` |
+| [`aws_movie_recommender/`](./aws_movie_recommender/) | 一个基于AWS云上部署的Serverless架构的电影推荐系统，结合了Bedrock、ECS、Step Functions和API Gateway等服务。 | `AWS`, `Serverless`, `Bedrock`, `ECS`, `Step Functions`, `API Gateway` |
 
 ---
 
