@@ -51,7 +51,7 @@ cd SimpleDistributedMaps && npm install && npm run cdk:deploy
 
 其架构如下图所示：
 
-![简单工作流架构图](file:///Users/jinxunliu/s3-objects-manipulation-distributed-map/resources/simple-workflow.png)
+![简单工作流架构图](https://github.com/mingyu110/tech-blog-/blob/main/static/images/Simple%20Distributed%20Map%20Architecture.png)
 
 ### **第三步：部署嵌套分布式 Map (NestedDistributedMap)**
 
@@ -63,7 +63,7 @@ cd NestedDistributedMap && npm install && npm run cdk:deploy
 
 其架构如下图所示：
 
-![嵌套工作流架构图](file:///Users/jinxunliu/s3-objects-manipulation-distributed-map/resources/nested_workflow.png)
+![嵌套工作流架构图](https://github.com/mingyu110/tech-blog-/blob/main/static/images/Nested%20Distributed%20Map%20Architecture.png)
 
 ### **第四步：准备S3测试数据**
 
