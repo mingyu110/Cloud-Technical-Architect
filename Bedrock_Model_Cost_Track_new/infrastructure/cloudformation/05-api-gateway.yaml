@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: API Gateway for Bedrock multi-tenant Lambda function
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+
+  ResourceNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+
+  APIRateLimitPerSecond:
+    Type: Number
+    Default: 100
+    Description: Rate limit per second per IP
+
+Resources:
+  # API Gateway REST API
+  APIGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-api"
+      Description: API Gateway for Bedrock multi-tenant cost tracking
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # API Gateway Resource (/invoke)
+  InvokeResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref APIGateway
+      ParentId: !GetAtt APIGateway.RootResourceId
+      PathPart: invoke
+
+  # API Gateway Method (POST /invoke)
+  InvokeMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref APIGateway
+      ResourceId: !Ref InvokeResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+          - LambdaArn: !ImportValue
+              Fn::Sub: "${ResourceNamePrefix}-${Environment}-lambda-arn"
+
+        PassthroughBehavior: WHEN_NO_MATCH
+        TimeoutInMillis: 29000
+
+  # API Gateway Deployment
+  APIGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - InvokeMethod
+    Properties:
+      RestApiId: !Ref APIGateway
+      StageName: !Ref Environment
+
+      StageDescription:
+        CacheClusterEnabled: false
+        ThrottlingBurstLimit: 500
+        ThrottlingRateLimit: !Ref APIRateLimitPerSecond
+        MethodSettings:
+          - ResourcePath: /invoke
+            HttpMethod: POST
+            MetricsEnabled: true
+            DataTraceEnabled: true
+            ThrottlingBurstLimit: 200
+            ThrottlingRateLimit: 50
+
+  # Lambda Permission for API Gateway
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !ImportValue
+        Fn::Sub: "${ResourceNamePrefix}-${Environment}-lambda-arn"
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${APIGateway}/*/POST/invoke"
+
+  # Usage Plan (rate limiting)
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: !Sub "${ResourceNamePrefix}-${Environment}-usage-plan"
+      Description: Usage plan for Bedrock API
+
+      ApiStages:
+        - ApiId: !Ref APIGateway
+          Stage: !Ref Environment
+
+      Throttle:
+        BurstLimit: 200
+        RateLimit: !Ref APIRateLimitPerSecond
+
+      Quota:
+        Limit: 1000000
+        Period: MONTH
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # API Key (optional)
+  APIKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-api-key"
+      Description: API Key for Bedrock cost tracking
+      Enabled: true
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # Associate API Key with Usage Plan
+  APIKeyUsagePlan:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref APIKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+Outputs:
+  APIGatewayId:
+    Description: API Gateway ID
+    Value: !Ref APIGateway
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-api-id"
+
+  APIEndpoint:
+    Description: API endpoint URL
+    Value: !Sub "https://${APIGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-api-endpoint"
+
+  APIKeyId:
+    Description: API Key ID
+    Value: !Ref APIKey
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-api-key"

@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPC Endpoints for Bedrock cost tracking system
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: VPC ID where Lambda functions are deployed
+
+  RouteTableIds:
+    Type: CommaDelimitedList
+    Description: Route table IDs for Gateway Endpoints
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: Subnet IDs for Interface Endpoints
+
+  SecurityGroupId:
+    Type: String
+    Description: Security Group ID for Interface Endpoints
+
+Resources:
+  # ==========================================
+  # Gateway Endpoints (免费)
+  # ==========================================
+  
+  # DynamoDB Gateway Endpoint
+  DynamoDBGatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.dynamodb"
+      VpcEndpointType: Gateway
+      RouteTableIds: !Ref RouteTableIds
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - "dynamodb:*"
+            Resource: "*"
+
+  # S3 Gateway Endpoint (可选)
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds: !Ref RouteTableIds
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - "s3:*"
+            Resource: "*"
+
+  # ==========================================
+  # Interface Endpoints (收费)
+  # ==========================================
+  
+  # SQS Interface Endpoint
+  SQSInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.sqs"
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      PrivateDnsEnabled: true
+
+  # Bedrock Runtime Interface Endpoint
+  BedrockRuntimeInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.bedrock-runtime"
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      PrivateDnsEnabled: true
+
+Outputs:
+  DynamoDBGatewayEndpointId:
+    Description: DynamoDB Gateway Endpoint ID
+    Value: !Ref DynamoDBGatewayEndpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-DynamoDBGatewayEndpoint"
+
+  S3GatewayEndpointId:
+    Description: S3 Gateway Endpoint ID
+    Value: !Ref S3GatewayEndpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-S3GatewayEndpoint"
+
+  SQSInterfaceEndpointId:
+    Description: SQS Interface Endpoint ID
+    Value: !Ref SQSInterfaceEndpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-SQSInterfaceEndpoint"
+
+  BedrockRuntimeInterfaceEndpointId:
+    Description: Bedrock Runtime Interface Endpoint ID
+    Value: !Ref BedrockRuntimeInterfaceEndpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-BedrockRuntimeInterfaceEndpoint"
+
+  EstimatedMonthlyCost:
+    Description: Estimated monthly cost for Interface Endpoints (2 endpoints × $0.01/hour × 720 hours)
+    Value: "$14.40 + data processing fees"

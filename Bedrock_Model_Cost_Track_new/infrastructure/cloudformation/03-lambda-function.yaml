@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Lambda functions for Bedrock cost tracking with SQS integration
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+
+  ResourceNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment packages
+
+  MainLambdaCodeKey:
+    Type: String
+    Default: lambda_main_redis.zip
+    Description: S3 key for main Lambda code
+
+  CostManagementLambdaCodeKey:
+    Type: String
+    Default: lambda_cost_management.zip
+    Description: S3 key for cost management Lambda code
+
+  VpcId:
+    Type: String
+    Default: ""
+    Description: VPC ID for Lambda (optional, for Redis)
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Subnet IDs for Lambda (optional, for Redis)
+
+  SecurityGroupIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Security Group IDs for Lambda (optional, for Redis)
+
+Conditions:
+  UseVpc: !Not [!Equals [!Ref VpcId, ""]]
+
+Resources:
+  # Main Lambda Function (Bedrock invocation)
+  MainLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ResourceNamePrefix}-${Environment}-bedrock-main"
+      Runtime: python3.11
+      Handler: lambda_function_resource_groups.lambda_handler
+      Role: !ImportValue
+        Fn::Sub: "${ResourceNamePrefix}-${Environment}-lambda-role-arn"
+      Timeout: 60
+      MemorySize: 512
+      
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref MainLambdaCodeKey
+
+      Environment:
+        Variables:
+          TENANT_CONFIGS_TABLE: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-tenant-configs-table"
+          TENANT_BUDGETS_TABLE: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-tenant-budgets-table"
+          MODEL_PRICING_TABLE: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-model-pricing-table"
+          COST_EVENT_QUEUE_URL: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-cost-event-queue-url"
+          ENABLE_COST_TRACKING: "true"
+          LOG_LEVEL: INFO
+          REDIS_ENABLED: !If [UseVpc, "true", "false"]
+
+      VpcConfig: !If
+        - UseVpc
+        - SubnetIds: !Ref SubnetIds
+          SecurityGroupIds: !Ref SecurityGroupIds
+        - !Ref AWS::NoValue
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # Cost Management Lambda Function (SQS consumer)
+  CostManagementLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ResourceNamePrefix}-${Environment}-cost-management"
+      Runtime: python3.11
+      Handler: lambda_function_cost_management.lambda_handler
+      Role: !ImportValue
+        Fn::Sub: "${ResourceNamePrefix}-${Environment}-lambda-role-arn"
+      Timeout: 60
+      MemorySize: 256
+      ReservedConcurrentExecutions: 100  # Limit concurrency to protect DynamoDB
+      
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref CostManagementLambdaCodeKey
+
+      Environment:
+        Variables:
+          TENANT_BUDGETS_TABLE: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-tenant-budgets-table"
+          MODEL_PRICING_TABLE: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-model-pricing-table"
+          BUDGET_ALERT_TOPIC_ARN: !ImportValue
+            Fn::Sub: "${ResourceNamePrefix}-${Environment}-budget-alert-topic"
+          LOG_LEVEL: INFO
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # SQS Event Source Mapping for Cost Management Lambda
+  CostManagementEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !ImportValue
+        Fn::Sub: "${ResourceNamePrefix}-${Environment}-cost-event-queue-arn"
+      FunctionName: !Ref CostManagementLambdaFunction
+      BatchSize: 10  # Process up to 10 messages per invocation
+      MaximumBatchingWindowInSeconds: 5  # Wait up to 5 seconds to collect batch
+      ScalingConfig:
+        MaximumConcurrency: 100  # Max concurrent Lambda executions
+      FunctionResponseTypes:
+        - ReportBatchItemFailures  # Enable partial batch failure handling
+
+  # Lambda Permission for SQS
+  CostManagementSQSPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CostManagementLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: sqs.amazonaws.com
+      SourceArn: !ImportValue
+        Fn::Sub: "${ResourceNamePrefix}-${Environment}-cost-event-queue-arn"
+
+Outputs:
+  MainLambdaFunctionArn:
+    Description: Main Lambda function ARN
+    Value: !GetAtt MainLambdaFunction.Arn
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-main-lambda-arn"
+
+  MainLambdaFunctionName:
+    Description: Main Lambda function name
+    Value: !Ref MainLambdaFunction
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-main-lambda-name"
+
+  CostManagementLambdaFunctionArn:
+    Description: Cost management Lambda function ARN
+    Value: !GetAtt CostManagementLambdaFunction.Arn
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-cost-management-lambda-arn"
+
+  CostManagementLambdaFunctionName:
+    Description: Cost management Lambda function name
+    Value: !Ref CostManagementLambdaFunction
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-cost-management-lambda-name"

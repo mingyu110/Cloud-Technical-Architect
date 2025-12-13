@@ -40,6 +40,7 @@
 | [DynamoDB Versioning Deep Dive](./best-practices/dynamodb_versioning_deep_dive.md) | 深入探讨DynamoDB的版本控制机制，包括乐观锁、条件更新和事务等。 | `AWS DynamoDB`, `Versioning`, `Optimistic Locking` |
 | [`云原生HPC平台高级成本优化策略实践.md`](./云原生HPC平台高级成本优化策略实践.md) | 一份在云原生环境下，针对高性能计算（HPC）工作负载的系统性成本优化策略与实践指南。 | `HPC`, `Cost Optimization`, `Kubernetes`, `FinOps` |
 | [`aws_movie_recommender/`](./aws_movie_recommender/) | 一个基于AWS云上部署的Serverless架构的电影推荐系统，结合了Bedrock、ECS、Step Functions和API Gateway等服务。 | `AWS`, `Serverless`, `Bedrock`, `ECS`, `Step Functions`, `API Gateway` |
+| [`Bedrock_Model_Cost_Track_new/`](./Bedrock_Model_Cost_Track_new/) | 基于AWS Bedrock的多租户AI应用成本追踪和管理系统，支持实时成本监控、预算控制和告警通知 | `AWS`, `Serverless`, `Bedrock`, , `SQS`, `API Gateway`,`Redis`,`DynamoDB`,`CloudWatch` |
 
 ---
 

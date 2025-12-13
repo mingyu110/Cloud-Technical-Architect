@@ -1,0 +1,19 @@
+==========================================
+Deploying SQS Architecture
+Environment: production
+Region: us-east-1
+==========================================
+Step 1: Deploying SQS queues...
+
+Waiting for changeset to be created..
+
+No changes to deploy. Stack bedrock-cost-tracking-production-sqs is up to date
+✓ SQS queues deployed
+Step 2: Updating IAM roles with SQS permissions...
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+
+Failed to create/update the stack. Run the following command
+to fetch the list of events leading up to the failure
+aws cloudformation describe-stack-events --stack-name bedrock-cost-tracking-production-iam

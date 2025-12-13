@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DynamoDB table for Lambda idempotency protection'
+
+Resources:
+  BedrockCostTrackingIdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BedrockCostTrackingIdempotency
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: RequestId
+          AttributeType: S
+        - AttributeName: TenantId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: RequestId
+          KeyType: HASH
+        - AttributeName: TenantId
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAt
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: BedrockCostTracking
+        - Key: Purpose
+          Value: IdempotencyProtection
+
+Outputs:
+  IdempotencyTableName:
+    Description: 'Name of the idempotency table'
+    Value: !Ref BedrockCostTrackingIdempotencyTable
+    Export:
+      Name: !Sub '${AWS::StackName}-IdempotencyTable'
+  
+  IdempotencyTableArn:
+    Description: 'ARN of the idempotency table'
+    Value: !GetAtt BedrockCostTrackingIdempotencyTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-IdempotencyTableArn'

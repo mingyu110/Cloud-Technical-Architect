@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: DynamoDB tables for Bedrock multi-tenant cost tracking - Resource Groups API version
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+    Description: Environment name
+
+  TableNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+    Description: Prefix for all table names
+
+Resources:
+  # TenantConfigs Table - Stores tenant configuration and permissions
+  TenantConfigsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TableNamePrefix}-${Environment}-tenant-configs"
+
+      AttributeDefinitions:
+        - AttributeName: tenantId
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: tenantId
+          KeyType: HASH
+
+      BillingMode: PAY_PER_REQUEST
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref DynamoDBKMSKey
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+        - Key: Component
+          Value: TenantConfigs
+
+  # TenantBudgets Table - Stores budget information per tenant
+  TenantBudgetsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TableNamePrefix}-${Environment}-tenant-budgets"
+
+      AttributeDefinitions:
+        - AttributeName: tenantId
+          AttributeType: S
+        - AttributeName: modelId
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: tenantId
+          KeyType: HASH
+        - AttributeName: modelId
+          KeyType: RANGE
+
+      GlobalSecondaryIndexes:
+        - IndexName: ModelIndex
+          KeySchema:
+            - AttributeName: modelId
+              KeyType: HASH
+            - AttributeName: tenantId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+      BillingMode: PAY_PER_REQUEST
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref DynamoDBKMSKey
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+        - Key: Component
+          Value: TenantBudgets
+
+  # ModelPricing Table - Stores pricing information for all models
+  ModelPricingTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TableNamePrefix}-${Environment}-model-pricing"
+
+      AttributeDefinitions:
+        - AttributeName: region
+          AttributeType: S
+        - AttributeName: modelId
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: region
+          KeyType: HASH
+        - AttributeName: modelId
+          KeyType: RANGE
+
+      BillingMode: PAY_PER_REQUEST
+
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref DynamoDBKMSKey
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+        - Key: Component
+          Value: ModelPricing
+
+  # KMS Key for DynamoDB encryption
+  DynamoDBKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for DynamoDB encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: dynamodb-key-policy
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow access from DynamoDB
+            Effect: Allow
+            Principal:
+              Service: dynamodb.amazonaws.com
+            Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:DescribeKey'
+            Resource: '*'
+
+  DynamoDBKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${TableNamePrefix}-${Environment}-dynamodb"
+      TargetKeyId: !Ref DynamoDBKMSKey
+
+Outputs:
+  TenantConfigsTableName:
+    Description: Name of TenantConfigs table
+    Value: !Ref TenantConfigsTable
+    Export:
+      Name: !Sub "${TableNamePrefix}-${Environment}-tenant-configs-table"
+
+  TenantBudgetsTableName:
+    Description: Name of TenantBudgets table
+    Value: !Ref TenantBudgetsTable
+    Export:
+      Name: !Sub "${TableNamePrefix}-${Environment}-tenant-budgets-table"
+
+  ModelPricingTableName:
+    Description: Name of ModelPricing table
+    Value: !Ref ModelPricingTable
+    Export:
+      Name: !Sub "${TableNamePrefix}-${Environment}-model-pricing-table"
+
+  DynamoDBKMSKeyArn:
+    Description: KMS Key ARN for DynamoDB
+    Value: !GetAtt DynamoDBKMSKey.Arn
+    Export:
+      Name: !Sub "${TableNamePrefix}-${Environment}-dynamodb-kms-key"

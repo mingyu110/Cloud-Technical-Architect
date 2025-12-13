@@ -1,0 +1,282 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudWatch monitoring for Bedrock cost tracking with SQS - Dashboards and Alarms
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+
+  ResourceNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+
+  BudgetThreshold:
+    Type: Number
+    Default: 1000
+    Description: Budget threshold in USD
+
+  TokenThresholdPerMinute:
+    Type: Number
+    Default: 10000
+    Description: Token per minute threshold
+
+  QueueDepthThreshold:
+    Type: Number
+    Default: 10000
+    Description: SQS queue depth threshold
+
+Resources:
+  # CloudWatch Dashboard
+  CloudWatchDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${ResourceNamePrefix}-${Environment}-sqs-dashboard"
+
+      DashboardBody: !Sub
+        - |
+          {
+            "widgets": [
+              {
+                "type": "text",
+                "x": 0,
+                "y": 0,
+                "width": 24,
+                "height": 2,
+                "properties": {
+                  "markdown": "# Bedrock Cost Tracking - SQS Architecture\n## Environment: ${Environment} | 100K+ TPS Support"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 2,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/SQS", "ApproximateNumberOfMessages", { "stat": "Average", "label": "Queue Depth" } ],
+                    [ ".", "ApproximateNumberOfMessagesNotVisible", { "stat": "Average", "label": "In Flight" } ]
+                  ],
+                  "view": "timeSeries",
+                  "region": "${AWS::Region}",
+                  "title": "SQS Queue Depth",
+                  "period": 60,
+                  "yAxis": {
+                    "left": {
+                      "label": "Messages"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 2,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/SQS", "NumberOfMessagesSent", { "stat": "Sum", "label": "Sent" } ],
+                    [ ".", "NumberOfMessagesDeleted", { "stat": "Sum", "label": "Processed" } ]
+                  ],
+                  "view": "timeSeries",
+                  "region": "${AWS::Region}",
+                  "title": "SQS Throughput",
+                  "period": 60,
+                  "yAxis": {
+                    "left": {
+                      "label": "Messages/min"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 8,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/Lambda", "ConcurrentExecutions", { "stat": "Maximum", "label": "Cost Mgmt Lambda" } ],
+                    [ "...", { "stat": "Average", "label": "Avg Concurrency" } ]
+                  ],
+                  "view": "timeSeries",
+                  "region": "${AWS::Region}",
+                  "title": "Lambda Concurrency",
+                  "period": 60
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 8,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/Lambda", "Duration", { "stat": "Average", "label": "Avg Duration" } ],
+                    [ "...", { "stat": "Maximum", "label": "Max Duration" } ]
+                  ],
+                  "view": "timeSeries",
+                  "region": "${AWS::Region}",
+                  "title": "Lambda Duration",
+                  "period": 60,
+                  "yAxis": {
+                    "left": {
+                      "label": "Milliseconds"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 14,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "BedrockCostManagement", "InvocationCost", { "stat": "Sum", "period": 300 } ]
+                  ],
+                  "view": "timeSeries",
+                  "region": "${AWS::Region}",
+                  "title": "Total Cost",
+                  "period": 300
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 14,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/Lambda", "Errors", { "stat": "Sum", "label": "Errors" } ],
+                    [ ".", "Throttles", { "stat": "Sum", "label": "Throttles" } ]
+                  ],
+                  "view": "timeSeries",
+                  "region": "${AWS::Region}",
+                  "title": "Lambda Errors & Throttles",
+                  "period": 60
+                }
+              }
+            ]
+          }
+        - AWS::Region: !Sub "${AWS::Region}"
+          Environment: !Sub "${Environment}"
+
+  # SQS Queue Depth Alarm
+  QueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ResourceNamePrefix}-${Environment}-queue-depth"
+      AlarmDescription: Alert when SQS queue depth exceeds threshold
+
+      ActionsEnabled: true
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${ResourceNamePrefix}-${Environment}-critical-alert-topic"
+
+      MetricName: ApproximateNumberOfMessages
+      Namespace: AWS/SQS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: !Ref QueueDepthThreshold
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub "${ResourceNamePrefix}-${Environment}-cost-events"
+
+  # SQS Message Age Alarm
+  MessageAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ResourceNamePrefix}-${Environment}-message-age"
+      AlarmDescription: Alert when messages are waiting too long
+
+      ActionsEnabled: true
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${ResourceNamePrefix}-${Environment}-critical-alert-topic"
+
+      MetricName: ApproximateAgeOfOldestMessage
+      Namespace: AWS/SQS
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub "${ResourceNamePrefix}-${Environment}-cost-events"
+
+  # Lambda Error Rate Alarm
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ResourceNamePrefix}-${Environment}-lambda-errors"
+      AlarmDescription: Alert on Lambda errors
+
+      ActionsEnabled: true
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${ResourceNamePrefix}-${Environment}-critical-alert-topic"
+
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "${ResourceNamePrefix}-${Environment}-cost-management"
+
+  # DLQ Messages Alarm
+  DLQMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ResourceNamePrefix}-${Environment}-dlq-messages"
+      AlarmDescription: Alert when messages enter DLQ
+
+      ActionsEnabled: true
+      AlarmActions:
+        - !ImportValue
+          Fn::Sub: "${ResourceNamePrefix}-${Environment}-critical-alert-topic"
+
+      MetricName: ApproximateNumberOfMessages
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub "${ResourceNamePrefix}-${Environment}-cost-events-dlq"
+
+Outputs:
+  DashboardUrl:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ResourceNamePrefix}-${Environment}-sqs-dashboard"
+
+  QueueDepthAlarmArn:
+    Description: Queue depth alarm ARN
+    Value: !Ref QueueDepthAlarm
+
+  MessageAgeAlarmArn:
+    Description: Message age alarm ARN
+    Value: !Ref MessageAgeAlarm

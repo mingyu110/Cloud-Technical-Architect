@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: SQS queues for Bedrock cost tracking - High throughput message queue
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+
+  ResourceNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+
+Resources:
+  # Dead Letter Queue
+  CostEventDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ResourceNamePrefix}-${Environment}-cost-events-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # Main Cost Event Queue
+  CostEventQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ResourceNamePrefix}-${Environment}-cost-events"
+      VisibilityTimeout: 300  # 5 minutes (match Lambda timeout)
+      MessageRetentionPeriod: 345600  # 4 days
+      ReceiveMessageWaitTimeSeconds: 20  # Long polling (reduce empty receives)
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt CostEventDLQ.Arn
+        maxReceiveCount: 3  # 3 retries before DLQ
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # Queue Policy (allow Lambda to send messages)
+  CostEventQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref CostEventQueue
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sqs:SendMessage
+              - sqs:SendMessageBatch
+            Resource: !GetAtt CostEventQueue.Arn
+
+Outputs:
+  CostEventQueueUrl:
+    Description: Cost event queue URL
+    Value: !Ref CostEventQueue
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-cost-event-queue-url"
+
+  CostEventQueueArn:
+    Description: Cost event queue ARN
+    Value: !GetAtt CostEventQueue.Arn
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-cost-event-queue-arn"
+
+  CostEventDLQUrl:
+    Description: Dead letter queue URL
+    Value: !Ref CostEventDLQ
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-cost-event-dlq-url"
+
+  CostEventDLQArn:
+    Description: Dead letter queue ARN
+    Value: !GetAtt CostEventDLQ.Arn
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-cost-event-dlq-arn"

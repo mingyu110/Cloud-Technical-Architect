@@ -1,0 +1,4 @@
+API_ID=tor8uppsc3
+API_ENDPOINT=https://tor8uppsc3.execute-api.us-east-1.amazonaws.com/production
+REGION=us-east-1
+ENVIRONMENT=production

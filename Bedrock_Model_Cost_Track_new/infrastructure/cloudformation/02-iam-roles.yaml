@@ -1,0 +1,263 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: IAM roles and policies for Bedrock multi-tenant Lambda function - Resource Groups API version
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+
+  TableNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+
+  ResourceNamePrefix:
+    Type: String
+    Default: bedrock-cost-tracking
+
+Resources:
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ResourceNamePrefix}-${Environment}-lambda-role"
+
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      ManagedPolicyArns:
+        # CloudWatch Logs
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+      Policies:
+        # DynamoDB access
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableNamePrefix}-${Environment}-tenant-configs"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableNamePrefix}-${Environment}-tenant-budgets"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableNamePrefix}-${Environment}-model-pricing"
+
+              - Effect: Allow
+                Action: dynamodb:Query
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableNamePrefix}-${Environment}-tenant-budgets/index/*"
+
+        # Bedrock access
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: "*"
+
+              - Effect: Allow
+                Action:
+                  - bedrock:GetInferenceProfile
+                  - bedrock:ListTagsForResource
+                Resource: "*"
+
+        # Resource Groups access
+        - PolicyName: ResourceGroupsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - tag:GetResources
+                Resource: "*"
+
+        # CloudWatch metrics
+        - PolicyName: CloudWatchMetrics
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    cloudwatch:namespace: "BedrockCostManagement"
+
+        # KMS access for DynamoDB encryption
+        - PolicyName: KmsDynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !ImportValue
+                  Fn::Sub: "${TableNamePrefix}-${Environment}-dynamodb-kms-key"
+
+        # SQS access
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:SendMessageBatch
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${ResourceNamePrefix}-${Environment}-cost-events"
+              
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${ResourceNamePrefix}-${Environment}-cost-events"
+
+        # SNS access for alerts
+        - PolicyName: SNSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !Ref BudgetAlertTopic
+                  - !Ref CriticalAlertTopic
+                  - !Ref RateLimitAlertTopic
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+        - Key: Component
+          Value: LambdaExecutionRole
+
+  # SNS Topic for budget alerts
+  BudgetAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ResourceNamePrefix}-${Environment}-budget-alerts"
+      DisplayName: "Bedrock Cost Budget Alerts"
+      KmsMasterKeyId: !Ref SNSKMSKey
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # SNS Topic for critical alerts
+  CriticalAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ResourceNamePrefix}-${Environment}-critical-alerts"
+      DisplayName: "Bedrock Critical Alerts"
+      KmsMasterKeyId: !Ref SNSKMSKey
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # SNS Topic for rate limit alerts
+  RateLimitAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ResourceNamePrefix}-${Environment}-ratelimit-alerts"
+      DisplayName: "Token Rate Limit Alerts"
+      KmsMasterKeyId: !Ref SNSKMSKey
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: BedrockCostTracking
+
+  # SNS KMS Key
+  SNSKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for SNS encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: sns-key-policy
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow SNS to use the key
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:GenerateDataKey*'
+            Resource: '*'
+
+  SNSKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${ResourceNamePrefix}-${Environment}-sns"
+      TargetKeyId: !Ref SNSKMSKey
+
+  # IAM Policy for Lambda to publish to SNS
+  LambdaSNSAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${ResourceNamePrefix}-${Environment}-lambda-sns-policy"
+      Roles:
+        - !Ref LambdaExecutionRole
+
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sns:Publish
+            Resource:
+              - !Ref BudgetAlertTopic
+              - !Ref CriticalAlertTopic
+              - !Ref RateLimitAlertTopic
+
+Outputs:
+  LambdaExecutionRoleArn:
+    Description: Lambda execution role ARN
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-lambda-role-arn"
+
+  BudgetAlertTopicArn:
+    Description: SNS topic ARN for budget alerts
+    Value: !Ref BudgetAlertTopic
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-budget-alert-topic"
+
+  CriticalAlertTopicArn:
+    Description: SNS topic ARN for critical alerts
+    Value: !Ref CriticalAlertTopic
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-critical-alert-topic"
+
+  RateLimitAlertTopicArn:
+    Description: SNS topic ARN for rate limit alerts
+    Value: !Ref RateLimitAlertTopic
+    Export:
+      Name: !Sub "${ResourceNamePrefix}-${Environment}-ratelimit-alert-topic"
